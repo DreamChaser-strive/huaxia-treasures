@@ -1,0 +1,11 @@
+# 使用 Git LFS 管理大文件，避免单文件超过 100MB 导致推送失败
+*.glb filter=lfs diff=lfs merge=lfs -text
+*.gltf filter=lfs diff=lfs merge=lfs -text
+*.fbx filter=lfs diff=lfs merge=lfs -text
+*.gltf-bin filter=lfs diff=lfs merge=lfs -text
+
+# 可选：大图也用 LFS（若 photosOrvideos 里单张很大可取消注释）
+# *.jpg filter=lfs diff=lfs merge=lfs -text
+# *.jpeg filter=lfs diff=lfs merge=lfs -text
+# *.png filter=lfs diff=lfs merge=lfs -text
+# *.webp filter=lfs diff=lfs merge=lfs -text

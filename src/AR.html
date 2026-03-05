@@ -1,0 +1,2740 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>华夏瑰宝 - 沉浸式数字人文展</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <!-- Three.js 与 GLTFLoader 由下方模块脚本引入 -->
+    <!-- 引入图标库 -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Markdown 解析库 (AI 回复用) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- 启用地图 3D 叠加 -->
+    <script>window.__liteMapMode = false;</script>
+    <script>
+        // 使用 public/background 下的图片作为背景（按顺序尝试多个文件名）
+        (function () {
+            function init() {
+                var el = document.getElementById('bg-image-layer');
+                if (!el) return;
+                var base = '/background/';
+                var names = ['02.png', '01.png', '03.png', 'bg.jpg', 'bg.png', 'bg.webp', 'image.jpg', 'image.png', 'background.jpg', 'background.png'];
+                function tryNext(i) {
+                    if (i >= names.length) return;
+                    var img = new Image();
+                    img.onload = function () { el.style.backgroundImage = 'url(\'' + base + names[i] + '\')'; };
+                    img.onerror = function () { tryNext(i + 1); };
+                    img.src = base + names[i];
+                }
+                tryNext(0);
+            }
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+            else init();
+        })();
+    </script>
+    <script type="module" src="./ar-overlay-final.js"></script>
+    <!-- 引入谷歌字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;500;700;900&family=Ma+Shan+Zheng&family=Zhi+Mang+Xing&family=Long+Cang&display=swap" rel="stylesheet">
+
+    <style>
+        /* --- 诗词浮层 (文脉) --- */
+        .poetry-container {
+            position: fixed; top: 10%; left: 5%; bottom: 10%; z-index: 5;
+            writing-mode: vertical-rl; text-orientation: upright;
+            font-family: 'Long Cang', 'Ma Shan Zheng', cursive;
+            font-size: 3.4rem;
+            letter-spacing: 0.5em;
+            pointer-events: none;
+            mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
+            -webkit-mask-image: -webkit-linear-gradient(transparent, black 15%, black 85%, transparent);
+            display: flex; gap: 2rem;
+            transform: translateX(-4%) rotate(-1deg);
+        }
+        .poetry-line {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 3s ease-out;
+            /* 金书玉册·金粉书写于虚空 */
+            background: linear-gradient(180deg,
+                #FFF8D0 0%, #F5E6A8 12%, #E8D070 28%, #D4AF37 45%,
+                #C6A56B 62%, #B8942E 78%, #8B7322 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter:
+                drop-shadow(0 0 12px rgba(212,175,55,0.7))
+                drop-shadow(0 0 32px rgba(198,165,107,0.4))
+                drop-shadow(0 0 60px rgba(212,175,55,0.2));
+            -webkit-mask-image: -webkit-linear-gradient(transparent 0%, black 25%, black 75%, transparent 100%);
+            mask-image: linear-gradient(to bottom, transparent 0%, black 25%, black 75%, transparent 100%);
+            -webkit-mask-size: 100% 300%;
+            mask-size: 100% 300%;
+            -webkit-mask-position: 0 100%;
+            mask-position: 0 100%;
+        }
+        .poetry-line.active {
+            opacity: 1;
+            transform: translateY(0);
+            -webkit-mask-position: 0 50%;
+            mask-position: 0 50%;
+            animation: inkSoak 3.5s ease-out forwards;
+        }
+        @keyframes inkSoak {
+            0% {
+                -webkit-mask-position: 0 100%; mask-position: 0 100%; opacity: 0;
+                -webkit-mask-size: 100% 280%; mask-size: 100% 280%;
+                filter: drop-shadow(0 0 0px rgba(212,175,55,0));
+            }
+            25% {
+                filter: drop-shadow(0 0 12px rgba(212,175,55,0.4)) drop-shadow(0 0 30px rgba(198,165,107,0.12));
+            }
+            100% {
+                -webkit-mask-position: 0 50%; mask-position: 0 50%; opacity: 1;
+                -webkit-mask-size: 100% 300%; mask-size: 100% 300%;
+                filter:
+                    drop-shadow(0 0 12px rgba(212,175,55,0.7))
+                    drop-shadow(0 0 32px rgba(198,165,107,0.4))
+                    drop-shadow(0 0 60px rgba(212,175,55,0.2));
+            }
+        }
+
+        /* --- 钤印 (印章) --- */
+        .seal-mark {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 3.5rem; height: 3.5rem;
+            background-color: #9e2a2b; /* 硃砂红 */
+            color: #f0f0f0;
+            border-radius: 4px;
+            font-family: 'Zhi Mang Xing', cursive;
+            font-size: 1.8rem;
+            line-height: 1;
+            box-shadow:
+                inset 0 0 0 2px #9e2a2b,
+                inset 0 0 0 4px #f0f0f0; /* 双重边框模拟印泥 */
+            transform: rotate(-3deg);
+            margin-left: 1rem;
+            opacity: 0.9;
+            position: relative;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            cursor: help;
+        }
+        /* 印章残缺纹理 */
+        .seal-mark::after {
+            content: ''; position: absolute; inset: 0;
+            background: url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.3'/%3E%3C/svg%3E");
+            opacity: 0.6; pointer-events: none;
+        }
+
+        /* --- 节气徽章 (时令铭牌) --- */
+        .solar-term-badge {
+            position: fixed; top: 32px; right: 40px; z-index: 60;
+            display: flex; flex-direction: column; align-items: center;
+            font-family: 'Noto Serif SC', serif;
+            color: #C6A56B;
+            opacity: 0.7;
+            border-right: 1px solid rgba(198,165,107,0.4);
+            padding-right: 12px;
+            filter: drop-shadow(0 0 4px rgba(198,165,107,0.1));
+        }
+        .solar-term-badge .term { font-size: 1.5rem; font-weight: bold; letter-spacing: 0.2em; writing-mode: vertical-rl; margin-bottom: 4px; }
+        .solar-term-badge .date { font-size: 0.75rem; writing-mode: vertical-rl; letter-spacing: 0.1em; opacity: 0.6; }
+
+        /* --- 核心视觉变量 (玄金墨韵) --- */
+        :root {
+            --c-deep-bg: #030807;
+            --c-primary: #1a4a3e;
+            --c-secondary: #6a7d74;
+            --c-accent: #B24A2F;
+            --c-gold: #C6A56B;
+            --c-gold-bright: #D4AF37;
+            --c-gold-dim: #8C6A32;
+            --c-ochre: #8B5B2E;
+            --c-ink: #050706;
+            --c-void: #020403;
+            --drawer-width: 580px;
+        }
+
+        /* --- 商周回纹 (Lei-wen) 描边风格 --- */
+        .lei-wen-border {
+            position: relative;
+            border: 1px solid rgba(198,165,107,0.3) !important;
+            box-shadow: 0 0 0 1px #000, 0 0 0 2px rgba(198,165,107,0.6);
+        }
+        .lei-wen-border::after {
+            content: ''; position: absolute; inset: -4px;
+            border: 1px solid transparent;
+            background: repeating-linear-gradient(45deg, #C6A56B 0, #C6A56B 1px, transparent 1px, transparent 5px) border-box;
+            -webkit-mask: -webkit-linear-gradient(#fff, #fff);
+            mask: linear-gradient(#fff, #fff);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            opacity: 0.5;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* --- 全局基础 --- */
+        body {
+            background-color: #05101a;
+            margin: 0; padding: 0; overflow: hidden;
+            font-family: 'Noto Serif SC', serif;
+            color: #e0e0e0;
+            cursor: none;
+        }
+
+        /* ========== 矿物材质 · 金碧山水 ========== */
+
+        /* 容器 */
+        #epic-shanshui-bg {
+            position: fixed; inset: 0; z-index: -999;
+            background: #020a0f; /* 深邃底色（图片未加载时） */
+            overflow: hidden; pointer-events: none;
+        }
+
+        /* 0. 背景图：使用 public/background 下的图片 */
+        .bg-image {
+            position: absolute; inset: 0; z-index: 0;
+            background-image: url('/background/02.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        /* 1. 光影基底：深邃的蓝绿矿物色（叠加在背景图上，保留氛围） */
+        .bg-base {
+            position: absolute; inset: 0; z-index: 1;
+            background: radial-gradient(
+                120% 100% at 50% 100%,
+                rgba(26, 84, 72, 0.35) 0%,
+                rgba(15, 46, 61, 0.45) 40%,
+                rgba(5, 18, 24, 0.7) 80%,
+                rgba(0, 0, 0, 0.85) 100%
+            );
+        }
+
+        /* 2. 历史尘埃：噪点纹理，模拟绢本岩彩颗粒感 */
+        .bg-noise {
+            position: absolute; inset: 0;
+            opacity: 0.1; /* 淡淡的颗粒感 */
+            mix-blend-mode: overlay;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
+            pointer-events: none;
+        }
+
+        /* 3. 远山剪影：层叠青影，不再是圆润的卡通波浪 */
+        .bg-mountain {
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            height: 40vh;
+            background: linear-gradient(to top, #0d3a33 10%, transparent 100%);
+            mask-image: linear-gradient(to top, black, transparent);
+            -webkit-mask-image: -webkit-linear-gradient(to top, black, transparent);
+            opacity: 0.6;
+            filter: blur(40px);
+        }
+
+        /* 4. 金色氛围光：底部微微发光，模拟博物馆展柜灯光 */
+        .bg-glow {
+            position: absolute; bottom: -100px; left: 50%;
+            transform: translateX(-50%);
+            width: 80vw; height: 300px;
+            background: radial-gradient(circle, rgba(212, 175, 55, 0.15) 0%, transparent 70%);
+            filter: blur(60px);
+            mix-blend-mode: screen;
+        }
+
+        /* 5. 金沙画布 */
+        #gold-particle-canvas {
+            position: absolute; inset: 0;
+        }
+
+        /* --- 自定义探灯光标 (博物馆暗室探灯) --- */
+        #cursor-lantern {
+            position: fixed; z-index: 99999; pointer-events: none; will-change: transform;
+            width: 32px; height: 32px; border-radius: 50%;
+            border: 1px solid rgba(198,165,107,0.4);
+            box-shadow:
+                0 0 12px 2px rgba(198,165,107,0.08),
+                0 0 30px 6px rgba(198,165,107,0.03),
+                inset 0 0 6px rgba(198,165,107,0.06);
+            transform: translate(-50%, -50%);
+            transition: width 0.25s, height 0.25s, border-color 0.25s, box-shadow 0.25s;
+            mix-blend-mode: screen;
+            background: radial-gradient(circle, rgba(198,165,107,0.05) 0%, transparent 70%);
+        }
+        #cursor-lantern.hovering {
+            width: 40px; height: 40px;
+            border-color: rgba(212,175,55,0.65);
+            box-shadow:
+                0 0 20px 6px rgba(212,175,55,0.15),
+                0 0 45px 12px rgba(212,175,55,0.05),
+                inset 0 0 12px rgba(212,175,55,0.1);
+        }
+        #cursor-lantern-dot, #cursor-lantern {
+            will-change: transform;
+        }
+        #cursor-lantern-dot {
+            position: fixed; z-index: 99999; pointer-events: none; will-change: transform;
+            width: 3px; height: 3px; border-radius: 50%;
+            background: var(--c-gold);
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 4px rgba(212,175,55,0.7), 0 0 10px rgba(198,165,107,0.3);
+        }
+        /* 恢复可交互元素的默认光标 */
+        a, button, input, textarea, select, [onclick], .cursor-pointer, .fab-contribute { cursor: none !important; }
+
+        /* (山峦与金沙样式已整合入 #culture-bg) */
+
+        .ink-bg-container { display: none; }
+
+        #map-container {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 10;
+        }
+        /* 地图轻微噪点 - 锐利不糊 */
+        #map-container::after {
+            content: ''; position: absolute; inset: 0; z-index: 11; pointer-events: none;
+            background: url("data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='bn'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='1' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23bn)' opacity='0.03'/%3E%3C/svg%3E");
+            background-size: 32px 32px;
+            opacity: 0.5;
+        }
+        /* 天顶聚光灯·地图中心明显聚焦 */
+        #map-container::before {
+            content: ''; position: absolute; inset: 0; z-index: 9; pointer-events: none;
+            background: radial-gradient(ellipse 50% 45% at 50% 45%, rgba(50,75,68,0.35) 0%, rgba(28,48,42,0.15) 40%, transparent 70%);
+            mix-blend-mode: screen;
+        }
+
+        .title-gradient {
+            background: linear-gradient(to bottom, #FFF8D0, #F0D978, #D4AF37, #B8942E, #8B7322);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+            letter-spacing: 0.15em;
+            filter: drop-shadow(0 0 8px rgba(212,175,55,0.2));
+        }
+
+        .holo-card {
+            background: rgba(8, 14, 12, 0.75);
+            border: 1px solid rgba(198, 165, 107, 0.18);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.7), inset 0 0 15px rgba(0,0,0,0.3);
+            position: relative; overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .holo-card:hover {
+            border-color: rgba(212, 175, 55, 0.5);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(212, 175, 55, 0.08), inset 0 0 20px rgba(198,165,107,0.03);
+            background: rgba(12, 20, 16, 0.8);
+        }
+
+        .artifact-card-3d {
+            transform-style: preserve-3d;
+            transform: perspective(1000px);
+            transition: transform 0.05s linear;
+        }
+        .artifact-card-inner {
+            background: linear-gradient(160deg, #1a2420 0%, #111815 60%, #0d1210 100%);
+            border: 1px solid rgba(198,165,107,0.1);
+            border-top: 1px solid rgba(212, 175, 55, 0.25);
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(198,165,107,0.08);
+            transform: translateZ(0);
+        }
+        .artifact-card-inner::after {
+            content: ''; position: absolute; inset: 0;
+            background: radial-gradient(circle at center, rgba(212, 175, 55, 0.12), transparent 65%);
+            opacity: 0; transition: opacity 0.3s; pointer-events: none;
+        }
+        .artifact-card-3d:hover .artifact-card-inner::after { opacity: 1; }
+
+        /* --- 搜索框（寻宝匣·金丝镶嵌）--- */
+        .magic-input {
+            border: 1px solid rgba(198, 165, 107, 0.3);
+            background: rgba(0, 0, 0, 0.6);
+            box-shadow: 0 0 15px rgba(21, 40, 35, 0.8);
+            color: #E8C547;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+        /* 上下金线装饰 */
+        .magic-input::before, .magic-input::after {
+            content: ''; position: absolute; left: 10px; right: 10px; height: 1px;
+            background: linear-gradient(90deg, transparent, #C6A56B, transparent);
+            pointer-events: none;
+        }
+        .magic-input::before { top: 0; }
+        .magic-input::after { bottom: 0; }
+        .magic-input:focus-within {
+            background: rgba(5,10,8,0.85);
+            border-color: rgba(212,175,55,0.5);
+            box-shadow:
+                0 0 20px rgba(212,175,55,0.15),
+                0 0 15px rgba(21, 40, 35, 0.8),
+                inset 0 0 20px rgba(198,165,107,0.03);
+        }
+        .magic-input:focus-within::before, .magic-input:focus-within::after {
+            background: linear-gradient(90deg, transparent, #D4AF37, transparent);
+        }
+        /* --- 全局搜索结果下拉 (保证可见、可点) --- */
+        #search-results {
+            max-height: 320px;
+            overflow-y: auto;
+            border-radius: 4px;
+            border: 1px solid rgba(198,165,107,0.35);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+            z-index: 250;
+        }
+        #search-results:not(.hidden) {
+            display: block;
+        }
+
+        /* --- 书法标题 --- */
+        .font-calligraphy { font-family: 'Ma Shan Zheng', cursive; }
+
+        /* --- 加载动画 (玄金墨韵) --- */
+        #loading-screen {
+            position: fixed; inset: 0; z-index: 9999;
+            background: radial-gradient(ellipse at 50% 45%, #0a1a15 0%, #050a08 40%, #020403 70%, #010201 100%);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .ink-loader {
+            width: 80px; height: 80px;
+            background: radial-gradient(circle, rgba(212,175,55,0.5) 0%, rgba(198,165,107,0.15) 40%, transparent 70%);
+            border-radius: 50%;
+            opacity: 0.7;
+            animation: loaderPulse 2.5s ease-in-out infinite;
+            box-shadow: 0 0 40px rgba(212,175,55,0.15), 0 0 80px rgba(198,165,107,0.05);
+        }
+        @keyframes loaderPulse {
+            0%, 100% { transform: scale(0.9); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        /* --- 侧边栏 (文物抽屉·博物馆暗室) --- */
+        #artifact-drawer {
+            position: fixed; top: 0; right: 0; bottom: 0; width: var(--drawer-width);
+            background: linear-gradient(180deg, #0a0e0c 0%, #080c0a 50%, #060908 100%);
+            border-left: 1px solid rgba(198,165,107,0.25);
+            box-shadow: -20px 0 80px rgba(0,0,0,0.95), -5px 0 20px rgba(0,0,0,0.5);
+            transform: translateX(100%);
+            transition: transform 0.5s cubic-bezier(0.2, 0, 0, 1);
+            z-index: 2000; display: flex; flex-direction: column;
+        }
+        #artifact-drawer::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 100%;
+            background-image: linear-gradient(0deg, transparent 15%, rgba(198,165,107,0.6) 50%, transparent 85%);
+            background-size: 100% 200%;
+            box-shadow: 0 0 12px rgba(198,165,107,0.15);
+        }
+        #artifact-drawer.active { transform: translateX(0); }
+        body.drawer-open #avatar-stand-container {
+            transform: translateX(calc(var(--drawer-width) * -1));
+        }
+        /* 3D 模型全屏浏览时隐藏共建按钮与 AI 人物，避免遮挡文物 */
+        body.model-popout-active .fab-contribute,
+        body.model-popout-active #avatar-stand-container,
+        body.model-popout-active #avatar-tooltip {
+            visibility: hidden;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease, visibility 0.25s ease;
+        }
+
+        .tag-ink {
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.02);
+            font-family: 'Noto Serif SC', serif;
+        }
+
+        /* --- 详情页媒体区 --- */
+        #media-display-area {
+            position: relative; width: 100%; height: 400px;
+            background: #000;
+        }
+
+        /* --- 居中详情弹窗 (玄金风) --- */
+        #detail-modal-overlay {
+            position: fixed; inset: 0; z-index: 3000;
+            background: rgba(0,0,0,0.9);
+            display: none; align-items: center; justify-content: center;
+            padding: 40px; opacity: 0; transition: opacity 0.3s;
+        }
+        #detail-modal-overlay.active { display: flex; opacity: 1; }
+        #detail-modal-content {
+            max-width: 1000px; width: 92vw; max-height: 90vh; overflow-y: auto;
+            background: linear-gradient(180deg, #0e1412 0%, #0a0e0c 100%);
+            border: 1px solid rgba(198,165,107,0.2);
+            box-shadow: 0 20px 80px rgba(0,0,0,0.9), 0 0 1px rgba(198,165,107,0.15);
+            transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        #detail-modal-overlay.active #detail-modal-content { transform: scale(1); }
+        #detail-modal-close {
+            position: absolute; top: 16px; right: 16px; z-index: 10;
+            width: 36px; height: 36px; border-radius: 50%;
+            border: 1px solid #444; color: #888;
+            background: rgba(0,0,0,0.5); cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
+        }
+        #detail-modal-close:hover { background: #C93728; color: #fff; border-color: #C93728; }
+        /* --- 资源切换按钮可点击性保障 --- */
+        #modal-media-area { position: relative; }
+        #modal-three-container,
+        #modal-image-view,
+        #modal-video-view {
+            z-index: 10;
+        }
+        #modal-resource-tabs {
+            z-index: 9999;
+            pointer-events: auto;
+        }
+        #modal-resource-tabs * { pointer-events: auto; }
+        #modal-resource-tabs button { cursor: pointer; }
+        /* --- 前世传奇/美学密码 下拉折叠 --- */
+        .artifact-collapse { border: 1px solid #333; margin-bottom: 1rem; }
+        .artifact-collapse .collapse-head {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0.75rem 1rem; cursor: pointer; user-select: none;
+            background: rgba(0,0,0,0.2); transition: background 0.2s;
+        }
+        .artifact-collapse .collapse-head:hover { background: rgba(198,165,107,0.08); }
+        .artifact-collapse .collapse-head .collapse-chevron {
+            transition: transform 0.25s ease; color: #D4AF37;
+        }
+        .artifact-collapse.expanded .collapse-head .collapse-chevron { transform: rotate(180deg); }
+        .artifact-collapse .collapse-body {
+            max-height: 0; overflow: hidden; transition: max-height 0.35s ease-out;
+        }
+        .artifact-collapse.expanded .collapse-body { max-height: 1200px; }
+        .artifact-collapse .collapse-body-inner { padding: 1rem 1.25rem; border-top: 1px solid #333; }
+        .vertical-layout {
+            writing-mode: vertical-rl; text-orientation: upright;
+            letter-spacing: 0.3em;
+        }
+
+        /* --- 共建按钮 (篆刻朱印·寿山石立体印章) --- */
+        .fab-contribute {
+            position: fixed; bottom: 40px; left: 190px; z-index: 5000;
+            width: 76px; height: 76px;
+            background:
+                linear-gradient(168deg,
+                    #c84a48 0%, #b83836 12%, #9e2a2b 32%,
+                    #8a2223 52%, #6e1a1b 72%, #4a1012 92%);
+            border-radius: 6px;
+            color: #f0e6d0; display: flex; align-items: center; justify-content: center;
+            box-shadow:
+                0 12px 35px rgba(0,0,0,0.9),
+                0 5px 14px rgba(0,0,0,0.75),
+                0 24px 60px rgba(0,0,0,0.5),
+                inset 0 2px 0 rgba(255,210,190,0.3),
+                inset 0 -4px 8px rgba(0,0,0,0.45),
+                inset 0 0 0 2px #6a1819,
+                inset 0 0 0 5px rgba(240,230,208,0.5),
+                0 0 30px rgba(158,42,43,0.2);
+            cursor: pointer;
+            pointer-events: auto;
+            transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.15s;
+            border: 2.5px solid rgba(240,230,208,0.35);
+            transform: rotate(-3deg) translateY(0px);
+        }
+        /* 内框篆刻边线 */
+        .fab-contribute::before {
+            content: ''; position: absolute; inset: 6px; border-radius: 4px;
+            border: 1.5px solid rgba(240,230,208,0.2);
+            box-shadow: inset 0 0 12px rgba(0,0,0,0.35);
+            pointer-events: none;
+        }
+        /* 磨损纹理·岁月侵蚀 */
+        .fab-contribute::after {
+            content: ''; position: absolute; inset: 0; border-radius: 6px;
+            background:
+                url("data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='2.5' numOctaves='5' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.28'/%3E%3C/svg%3E"),
+                linear-gradient(180deg, rgba(255,255,255,0.06) 0%, transparent 35%, rgba(0,0,0,0.15) 100%);
+            opacity: 0.75; pointer-events: none;
+            mix-blend-mode: overlay;
+        }
+        .fab-contribute:hover {
+            transform: rotate(-3deg) translateY(-5px);
+            box-shadow:
+                0 14px 42px rgba(0,0,0,0.88),
+                0 5px 14px rgba(158,42,43,0.35),
+                0 24px 60px rgba(0,0,0,0.4),
+                0 0 24px rgba(158,42,43,0.18),
+                inset 0 2px 0 rgba(255,210,190,0.3),
+                inset 0 0 0 2px #8a2223,
+                inset 0 0 0 5px rgba(240,230,208,0.6);
+        }
+        .fab-contribute:active {
+            transform: rotate(-3deg) translateY(10px) scale(0.96);
+            box-shadow:
+                0 1px 4px rgba(0,0,0,0.95),
+                0 0 0 1px rgba(0,0,0,0.4),
+                inset 0 6px 16px rgba(0,0,0,0.6),
+                inset 0 0 0 2px #5a1314,
+                inset 0 0 0 4px rgba(240,230,208,0.3);
+            transition: transform 0.06s ease-out, box-shadow 0.06s ease-out;
+        }
+
+        /* --- 问的 AI 按钮 --- */
+        .fab-chat {
+            background: #2E5E5E;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            transition: transform 0.2s, background-color 0.2s;
+        }
+        .fab-chat:hover {
+            transform: translateY(-2px) scale(1.05);
+            background-color: #3b7a7a;
+            box-shadow: 0 6px 20px rgba(46, 94, 94, 0.4);
+        }
+
+        /* --- AI 聊天窗口 --- */
+        #chat-window {
+            position: fixed; bottom: 20px; right: calc(350px + 20px); width: 350px; height: 500px;
+            background: rgba(26, 26, 26, 0.95);
+            border: 1px solid var(--c-gold-dim);
+            border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            display: flex; flex-direction: column;
+            z-index: 5001;
+            --chat-shift-x: 0px;
+            transform: translate3d(var(--chat-shift-x), 20px, 0); opacity: 0; pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+        }
+        #chat-window.active {
+            transform: translate3d(var(--chat-shift-x), 0, 0); opacity: 1; pointer-events: auto;
+        }
+        body.drawer-open #chat-window {
+            --chat-shift-x: calc(var(--drawer-width) * -1);
+        }
+        .chat-msg {
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            line-height: 1.6;
+            max-width: 85%;
+        }
+        .chat-msg.user {
+            align-self: flex-end;
+            background: var(--c-gold-dim);
+            color: #fff;
+            border-bottom-right-radius: 0;
+        }
+        .chat-msg.ai {
+            align-self: flex-start;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #e0e0e0;
+            border-bottom-left-radius: 0;
+        }
+        .chat-msg.system {
+            align-self: center;
+            background: transparent;
+            border: none;
+            color: #8B7322;
+            font-size: 11px;
+            text-align: center;
+            padding: 4px 0;
+            font-style: italic;
+        }
+        .typing-dot {
+            display: inline-block; width: 4px; height: 4px; background: #888; border-radius: 50%;
+            margin-right: 2px;
+        }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--c-gold-dim); }
+
+        /* --- 返回按钮 (碑刻质感) --- */
+        #btn-back-national {
+            position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+            z-index: 50; padding: 12px 48px;
+            background: linear-gradient(180deg, #1a1a1a 0%, #0d0d0d 100%);
+            color: #D4AF37;
+            font-family: 'Noto Serif SC', serif;
+            letter-spacing: 0.35em;
+            border: 2px solid rgba(198,165,107,0.6);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 25px rgba(198,165,107,0.15);
+            cursor: pointer; display: none;
+            transition: all 0.25s;
+            font-weight: bold;
+        }
+        #btn-back-national:hover {
+            background: linear-gradient(180deg, #D4AF37 0%, #B8942E 100%);
+            color: #0d0d0d;
+            border-color: #D4AF37;
+            box-shadow: 0 6px 30px rgba(212,175,55,0.35), 0 0 40px rgba(198,165,107,0.2);
+        }
+
+        /* --- 图例提示 (铭文碑刻) --- */
+        #legend-hint {
+            position: fixed; bottom: 32px; left: 48px; z-index: 50;
+            font-family: 'Noto Serif SC', serif;
+            font-size: 13px; color: #C6A56B;
+            display: flex; align-items: center; gap: 12px;
+            background: rgba(5, 10, 8, 0.9);
+            padding: 10px 18px;
+            border: 1px solid rgba(198,165,107,0.35);
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 6px 24px rgba(0,0,0,0.6);
+            position: relative;
+        }
+        #legend-hint::before {
+            content: '';
+            position: absolute; inset: 3px;
+            border: 0.5px solid rgba(198,165,107,0.2);
+            pointer-events: none;
+        }
+        #legend-hint .legend-dot {
+            width: 12px; height: 12px;
+            background: var(--c-ochre);
+            transform: rotate(45deg);
+        }
+
+        /* --- 水波四散·真实水面涟漪 --- */
+        .click-ripple {
+            position: fixed; pointer-events: none; z-index: 9998;
+            width: 60px; height: 60px; margin-left: -30px; margin-top: -30px;
+        }
+        .click-ripple-wave {
+            position: absolute; inset: 0;
+            border-radius: 50%;
+            border: 1px solid rgba(180,210,230,0.5);
+            box-shadow: 0 0 3px rgba(200,225,240,0.3);
+            transform: scale(0.2);
+            animation: waterRippleWave 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+        .click-ripple-wave:nth-child(1) { animation-delay: 0ms; }
+        .click-ripple-wave:nth-child(2) { animation-delay: 80ms; }
+        .click-ripple-wave:nth-child(3) { animation-delay: 160ms; }
+        .click-ripple-wave:nth-child(4) { animation-delay: 240ms; }
+        @keyframes waterRippleWave {
+            0% { transform: scale(0.2); opacity: 0.7; }
+            100% { transform: scale(1.8); opacity: 0; }
+        }
+        .click-ripple-splash {
+            position: absolute; inset: -15%;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(220,235,250,0.25) 0%, transparent 65%);
+            animation: waterRippleSplash 0.35s ease-out forwards;
+        }
+        @keyframes waterRippleSplash {
+            0% { transform: scale(0.3); opacity: 1; }
+            100% { transform: scale(0.9); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- 矿物材质 · 金碧山水 背景系统 -->
+<div id="epic-shanshui-bg" aria-hidden="true">
+    <div class="bg-image" id="bg-image-layer"></div>
+    <div class="bg-base" id="bg-base-layer"></div>
+    <div class="bg-noise" id="bg-noise-layer"></div>
+    <div class="bg-mountain" id="bg-mountain-layer"></div>
+    <div class="bg-glow" id="bg-glow-layer"></div>
+    <canvas id="gold-particle-canvas"></canvas>
+</div>
+
+<!-- 文化探灯光标 -->
+<div id="cursor-lantern"></div>
+<div id="cursor-lantern-dot"></div>
+
+<!-- 诗词文脉浮层 -->
+<div class="poetry-container" id="poetry-container">
+    <div class="poetry-line"></div>
+    <div class="poetry-line"></div>
+</div>
+
+<!-- 节气徽章 (JavaScript 动态计算) -->
+<div id="solar-badge" class="solar-term-badge hidden">
+    <span class="term" id="term-text">立春</span>
+    <span class="date" id="term-date">壬寅年</span>
+</div>
+
+<!-- 加载遮罩 -->
+<div id="loading-screen">
+    <div class="ink-loader mb-6"></div>
+    <div class="text-center relative">
+        <div class="flex items-center justify-center">
+            <h2 class="text-5xl font-calligraphy text-[#D4AF37] mb-4 tracking-widest title-gradient" style="font-family: 'Ma Shan Zheng';">华夏瑰宝</h2>
+            <div class="seal-mark mb-4" title="数字人文 · 珍藏">珍藏</div>
+        </div>
+        <div class="h-[1px] w-32 bg-gradient-to-r from-transparent via-[#8B7322] to-transparent mb-4 opacity-50 mx-auto"></div>
+        <p class="text-sm text-gray-500 font-serif tracking-[0.4em] uppercase" id="loading-text">数字人文 · 沉浸体验</p>
+    </div>
+    <button id="retry-btn" class="hidden mt-8 px-6 py-2 border border-[#C93728] text-[#C93728] hover:bg-[#C93728] hover:text-white transition text-xs tracking-widest font-bold" onclick="location.reload()">重新连接神州</button>
+</div>
+
+<!-- 背景层（简化） -->
+
+<!-- 1. 顶部搜索栏：全局搜索 (保留原功能) -->
+<div class="fixed top-8 left-10 z-[100] w-[340px]">
+    <div class="magic-input rounded-sm px-5 py-3 flex items-center relative group holo-card lei-wen-border">
+        <i class="ph ph-magnifying-glass text-xl text-[#8B7322] mr-3 group-hover:text-[#D4AF37] transition-colors"></i>
+        <input type="text" id="global-search" placeholder="寻觅 · 瑰宝"
+               class="w-full bg-transparent border-none focus:ring-0 text-base text-[#D4AF37] placeholder-[#555] outline-none font-serif tracking-widest"
+               autocomplete="off">
+        <div class="absolute top-0 left-0 w-2 h-2 border-t border-l border-[#D4AF37] opacity-50"></div>
+        <div class="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-[#D4AF37] opacity-50"></div>
+    </div>
+    <div id="search-results" class="hidden absolute top-full left-0 right-0 mt-2 bg-[#1a1a1a] border border-[#333]"></div>
+</div>
+
+<!-- 地图容器 -->
+<div id="map-container"></div>
+
+<!-- 图例提示 -->
+<div id="legend-hint" class="holo-card">
+    <div class="legend-dot"></div>
+    <span class="tracking-widest text-gray-400">颜色越深 · 馆藏越多</span>
+</div>
+
+<!-- 返回按钮 -->
+<button id="btn-back-national" class="hidden font-bold lei-wen-border">重返神州</button>
+
+<!-- 贡献按钮（左下角） -->
+<div class="fab-contribute group fixed bottom-10 left-[190px] z-[5000] w-16 h-16 flex items-center justify-center overflow-visible" id="fab-contribute-btn">
+    <div class="font-calligraphy text-2xl z-10 font-bold" style="font-family: 'Zhi Mang Xing', cursive; text-shadow: 0 1px 3px rgba(0,0,0,0.5);">共建</div>
+    <div class="absolute left-full ml-2 top-1/2 -translate-y-1/2 bg-[#111] text-[#D4AF37] text-xs px-3 py-2 border border-[#333] opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none tracking-widest shadow-lg">添加家乡文物</div>
+</div>
+
+<!-- 李白模型容器 -->
+<div id="avatar-stand-container" class="fixed bottom-0 right-0 z-[4500] w-[350px] h-[500px] pointer-events-none transition-transform duration-300"></div>
+<div id="avatar-tooltip" class="fixed z-[5000] pointer-events-none bg-black/80 text-[#D4AF37] text-xs px-3 py-1.5 rounded border border-[#D4AF37]/50 opacity-0 transition-opacity duration-200 font-serif tracking-widest" style="will-change: transform;">点击提问</div>
+
+<!-- AI 聊天窗口 -->
+<div id="chat-window" class="flex flex-col">
+    <div class="p-4 border-b border-[#333] flex justify-between items-center bg-[#111]/50 rounded-t-lg">
+        <h3 class="text-[#D4AF37] font-serif font-bold tracking-widest flex items-center gap-2">
+            <i class="ph ph-sparkle"></i> 博物导览
+        </h3>
+        <button onclick="toggleChatWindow()" class="text-[#555] hover:text-[#C93728]"><i class="ph ph-x"></i></button>
+    </div>
+    <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4">
+        <div class="chat-msg ai">
+            阁下安好。吾乃数字博古馆导览员。关于华夏瑰宝，若有疑问，尽可道来。<br>
+            <span class="text-xs text-gray-500 mt-1 block">支持上下文：若正在查看文物，可直接问“它有什么历史？”</span>
+        </div>
+    </div>
+    <div class="p-3 border-t border-[#333] bg-[#111]/50 rounded-b-lg">
+        <div class="flex gap-2">
+            <input type="text" id="chat-input" placeholder="输入问题..." class="flex-1 bg-[#222] border border-[#444] rounded px-3 py-2 text-sm text-[#e0e0e0] focus:border-[#D4AF37] outline-none font-serif">
+            <button onclick="sendChatMessage()" class="bg-[#2E5E5E] hover:bg-[#3b7a7a] text-white px-3 rounded transition"><i class="ph ph-paper-plane-right"></i></button>
+        </div>
+    </div>
+</div>
+
+<!-- 3. 贡献模态框 (玄金风) -->
+<div id="contribute-modal" class="fixed inset-0 z-[3000] hidden items-center justify-center bg-black/90 backdrop-blur-sm">
+    <div class="bg-[#1a1a1a] w-[550px] p-10 relative shadow-2xl border border-[#333] transform transition-all scale-95 opacity-0 overflow-hidden" id="modal-content">
+        <div class="absolute inset-2 border border-[#333] pointer-events-none"></div>
+        <div class="absolute inset-0 border border-[#D4AF37]/20 pointer-events-none"></div>
+
+        <div class="flex justify-between items-center mb-8 relative z-20">
+            <h3 class="text-3xl font-bold text-[#D4AF37] font-serif tracking-widest" style="font-family: 'Ma Shan Zheng';">守护家乡记忆</h3>
+            <button onclick="closeContributeModal()" class="text-[#555] hover:text-[#C93728] transition duration-200"><i class="ph ph-x text-2xl"></i></button>
+        </div>
+
+        <form onsubmit="handleContributeSubmit(event)" class="space-y-6 relative z-20">
+            <div class="grid grid-cols-2 gap-4">
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-[#555] tracking-widest uppercase">文物名称</label>
+                    <input type="text" required class="w-full bg-[#111] border border-[#333] p-3 text-[#D4AF37] font-serif focus:border-[#D4AF37] outline-none transition-colors duration-200">
+                </div>
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-[#555] tracking-widest uppercase">所属城市</label>
+                    <input type="text" required class="w-full bg-[#111] border border-[#333] p-3 text-[#D4AF37] font-serif focus:border-[#D4AF37] outline-none transition-colors duration-200">
+                </div>
+            </div>
+            <div class="space-y-2">
+                <label class="text-xs font-bold text-[#555] tracking-widest uppercase">推荐理由</label>
+                <textarea rows="3" required class="w-full bg-[#111] border border-[#333] p-3 text-[#D4AF37] font-serif focus:border-[#D4AF37] outline-none transition-colors duration-200 resize-none"></textarea>
+            </div>
+            <div class="space-y-2">
+                <label class="text-xs font-bold text-[#555] tracking-widest uppercase">档案上传</label>
+                <div class="group relative border border-dashed border-[#444] p-6 text-center cursor-pointer hover:border-[#D4AF37] hover:bg-[#D4AF37]/5 transition-colors duration-200">
+                    <input type="file" multiple class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+                    <div class="flex flex-col items-center justify-center text-[#555] group-hover:text-[#D4AF37]">
+                        <div class="flex items-center gap-6 mb-3">
+                            <i class="ph ph-image text-2xl"></i>
+                            <i class="ph ph-cube text-2xl"></i>
+                        </div>
+                        <span class="text-xs tracking-wider">拖拽或点击上传</span>
+                    </div>
+                </div>
+            </div>
+            <button type="submit" class="w-full mt-4 bg-[#9e2a2b] hover:bg-[#C93728] text-white py-3 font-serif font-bold tracking-[0.4em] shadow-lg transition-colors duration-200">提交审核</button>
+        </form>
+    </div>
+</div>
+
+<!-- 4. 侧边栏 (文物抽屉，与 example 一致) -->
+<div id="artifact-drawer">
+    <div class="absolute top-6 right-6 z-50">
+        <button onclick="closeDrawer()" class="w-10 h-10 border border-[#444] text-[#888] hover:text-[#C93728] hover:border-[#C93728] transition duration-200 flex items-center justify-center rounded-sm"><i class="ph ph-x text-lg"></i></button>
+    </div>
+
+    <div id="view-gallery" class="w-full h-full flex flex-col relative overflow-hidden">
+        <div class="absolute top-10 right-10 text-[240px] font-calligraphy text-[#fff] opacity-[0.02] pointer-events-none select-none leading-none z-0" style="font-family: 'Ma Shan Zheng';">礼</div>
+        <div class="pt-16 px-10 pb-6 relative z-10">
+            <h2 class="text-6xl font-calligraphy text-[#D4AF37] mb-2" id="gallery-city-name" style="font-family: 'Ma Shan Zheng';">城市</h2>
+            <div class="flex items-center gap-3 text-[#555]">
+                <div class="h-[1px] w-12 bg-[#555]"></div>
+                <span class="text-xs tracking-[0.4em] font-bold">CULTURAL HERITAGE</span>
+            </div>
+            <p class="mt-6 text-sm text-[#888] font-serif pl-1">收录 <span id="gallery-count" class="text-[#C93728] text-xl font-bold mx-1" style="font-family: 'Georgia'">0</span> 件传世瑰宝</p>
+            <div class="mt-8 flex items-center gap-2 relative border-b border-[#333] pb-2">
+                <div class="flex-1 flex items-center border border-[#333] bg-[#0a0a0a]/50 px-3 py-2 rounded-sm">
+                    <i class="ph ph-magnifying-glass text-[#8B7322] mr-2"></i>
+                    <input type="text" id="drawer-search" placeholder="在此城寻宝..." class="flex-1 bg-transparent py-1 text-[#D4AF37] outline-none placeholder-[#333] font-serif text-sm">
+                </div>
+                <button type="button" id="drawer-search-btn" class="px-4 py-2 bg-[#2E5E5E] hover:bg-[#3b7a7a] text-white text-sm font-serif rounded-sm border border-[#D4AF37]/30 whitespace-nowrap transition lei-wen-border">搜索</button>
+            </div>
+        </div>
+        <div id="gallery-grid" class="flex-1 overflow-y-auto px-10 pb-10 space-y-6 z-10"></div>
+    </div>
+
+    <div id="view-detail" class="w-full h-full flex flex-col hidden bg-[#111] relative z-20">
+        <button onclick="backToGallery()" class="absolute top-6 left-6 z-50 flex items-center gap-2 px-4 py-2 border border-[#333] text-[#888] text-xs tracking-widest hover:text-[#D4AF37] hover:border-[#D4AF37] transition duration-200"><i class="ph ph-caret-left"></i> 返回</button>
+        <div id="media-display-area" class="relative w-full h-[45%] bg-[#000]">
+            <div id="three-container" class="absolute inset-0 z-10"></div>
+            <div id="three-badge" class="absolute bottom-6 right-6 z-20 flex items-center gap-2 bg-black/60 text-[#D4AF37] px-4 py-1.5 text-xs font-bold border border-[#333] backdrop-blur-sm">
+                <i class="ph ph-cube-transparent text-lg"></i> 3D 全息视图
+            </div>
+            <div id="hero-image-container" class="absolute inset-0 z-30 hidden flex items-center justify-center">
+                <img id="hero-image" onerror="this.src='data:image/svg+xml,%3Csvg width=\'300\' height=\'200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Crect width=\'100%25\' height=\'100%25\' fill=\'%231e293b\'/%3E%3Ctext x=\'50%25\' y=\'50%25\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23D4AF37\' font-family=\'serif\' font-size=\'20\'%3E暂无影像%3C/text%3E%3C/svg%3E'" class="w-full h-full object-cover opacity-80" src="" alt="Artifact">
+                <div class="absolute inset-0 bg-gradient-to-t from-[#111] to-transparent"></div>
+            </div>
+        </div>
+        <div class="flex-1 overflow-y-auto p-10 relative">
+            <div class="flex justify-between items-start mb-4">
+                <h2 id="detail-title" class="text-4xl font-calligraphy text-[#D4AF37] drop-shadow-lg" style="font-family: 'Ma Shan Zheng';"></h2>
+            </div>
+            <div id="detail-tags" class="flex flex-wrap gap-2 mb-8"></div>
+            <div class="grid grid-cols-2 gap-6 mb-10 border-y border-[#333] py-6 bg-[#161616] px-4">
+                <div class="space-y-1"><span class="text-[10px] text-[#555] tracking-widest uppercase">Era / 朝代</span><div id="detail-era" class="text-[#C93728] font-bold text-lg"></div></div>
+                <div class="space-y-1"><span class="text-[10px] text-[#555] tracking-widest uppercase">Material / 材质</span><div id="detail-material" class="text-[#aaa] font-bold"></div></div>
+                <div class="space-y-1"><span class="text-[10px] text-[#555] tracking-widest uppercase">Size / 尺寸</span><div id="detail-size" class="text-[#666] text-sm"></div></div>
+                <div class="space-y-1"><span class="text-[10px] text-[#555] tracking-widest uppercase">Collection / 现藏</span><div id="detail-museum" class="text-[#666] text-sm"></div></div>
+            </div>
+            <div class="grid grid-cols-1 gap-8 font-serif text-[#bbb] leading-loose">
+                <section class="artifact-collapse expanded" data-section="legend">
+                    <div class="collapse-head flex items-center">
+                        <h3 class="text-lg font-bold text-[#D4AF37] flex items-center mb-0"><span class="w-1 h-4 bg-[#C93728] mr-3"></span> 前世传奇</h3>
+                        <i class="ph ph-caret-down collapse-chevron text-xl"></i>
+                    </div>
+                    <div class="collapse-body">
+                        <div class="collapse-body-inner">
+                            <p id="detail-intro" class="text-justify opacity-90 text-sm"></p>
+                        </div>
+                    </div>
+                </section>
+                <section class="artifact-collapse expanded" data-section="aesthetic">
+                    <div class="collapse-head flex items-center">
+                        <h3 class="text-lg font-bold text-[#D4AF37] flex items-center mb-0"><span class="w-1 h-4 bg-[#2E5E5E] mr-3"></span> 美学密码</h3>
+                        <i class="ph ph-caret-down collapse-chevron text-xl"></i>
+                    </div>
+                    <div class="collapse-body">
+                        <div class="collapse-body-inner bg-[#1a1a1a] border border-[#333] border-t-0 italic text-sm text-[#888]">
+                            <p id="detail-value"></p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 3D 模型全屏弹窗 (玄金风) -->
+<div id="model-popout-overlay" class="fixed inset-0 z-[4000] hidden flex items-center justify-center">
+    <div id="model-popout-backdrop" class="absolute inset-0 bg-black/95 cursor-pointer" style="z-index:1"></div>
+    <div id="model-popout-container" class="relative w-full h-full max-w-6xl max-h-[80vh] min-h-[60vh] cursor-grab active:cursor-grabbing z-10" style="z-index:2"></div>
+    <button type="button" id="model-popout-close-btn" class="absolute top-10 right-10 z-20 w-12 h-12 border border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37] hover:text-black transition flex items-center justify-center text-xl" style="z-index:3"><i class="ph ph-x"></i></button>
+</div>
+
+<!-- 居中详情弹窗 (玄金风，与 example 一致) -->
+<div id="detail-modal-overlay" onclick="if(event.target===this) closeDetailModal()" class="bg-black/90 backdrop-blur-sm transition-opacity duration-200 opacity-0">
+    <div id="detail-modal-content" class="relative w-[1000px] max-w-[95vw] max-h-[90vh] bg-[#1a1a1a] border border-[#333] overflow-hidden shadow-2xl flex flex-col md:flex-row transform scale-95 transition-transform duration-200" onclick="event.stopPropagation()">
+        <button id="detail-modal-close" onclick="closeDetailModal()" class="absolute top-6 right-6 z-50 w-10 h-10 border border-[#444] text-[#555] hover:text-[#C93728] hover:border-[#C93728] transition flex items-center justify-center rounded-sm"><i class="ph ph-x text-lg"></i></button>
+        <div id="modal-media-area" class="relative w-full md:w-[60%] h-[40vh] md:h-full bg-black border-r border-[#333] min-h-[320px] group">
+            <div id="modal-resource-tabs" class="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-3 p-1 bg-black/60 rounded border border-[#333] opacity-100 transition duration-300 hidden"></div>
+            <div id="modal-three-container" class="absolute inset-0 hidden"></div>
+            <div id="modal-image-view" class="absolute inset-0 flex items-center justify-center hidden">
+                <img id="modal-hero-img" onerror="this.src='data:image/svg+xml,%3Csvg width=\'300\' height=\'200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Crect width=\'100%25\' height=\'100%25\' fill=\'%231e293b\'/%3E%3Ctext x=\'50%25\' y=\'50%25\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23D4AF37\' font-family=\'serif\' font-size=\'20\'%3E暂无影像%3C/text%3E%3C/svg%3E'" class="max-w-full max-h-full object-contain" src="" alt="">
+                <div id="modal-image-nav" class="hidden absolute inset-y-0 left-0 right-0 flex items-center justify-between px-2 pointer-events-none">
+                    <button class="pointer-events-auto w-10 h-10 rounded-full bg-black/30 hover:bg-black/50 text-white flex items-center justify-center transition"><i class="ph ph-caret-left"></i></button>
+                    <button class="pointer-events-auto w-10 h-10 rounded-full bg-black/30 hover:bg-black/50 text-white flex items-center justify-center transition"><i class="ph ph-caret-right"></i></button>
+                </div>
+                <div id="modal-image-dots" class="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5 hidden"></div>
+            </div>
+            <div id="modal-video-view" class="absolute inset-0 hidden bg-black flex items-center justify-center">
+                <video id="modal-hero-video" class="w-full h-full hidden" controls playsinline preload="metadata"></video>
+                <iframe id="modal-hero-embed" class="w-full h-full hidden" allowfullscreen></iframe>
+            </div>
+        </div>
+        <div class="w-full md:w-[40%] overflow-y-auto bg-[#1a1a1a] p-8 relative">
+            <div class="mt-8">
+                <h2 id="modal-detail-title" class="text-4xl font-calligraphy text-[#D4AF37] mb-4 leading-tight" style="font-family: 'Ma Shan Zheng';"></h2>
+                <div id="modal-detail-tags" class="flex flex-wrap gap-2 mb-8"></div>
+                <div class="grid grid-cols-2 gap-y-6 gap-x-4 text-sm mb-10 bg-[#111] p-6 border border-[#333]">
+                    <div><div class="text-[#555] text-xs uppercase tracking-widest mb-1">Era</div><div id="modal-detail-era" class="text-[#C93728] font-bold"></div></div>
+                    <div><div class="text-[#555] text-xs uppercase tracking-widest mb-1">Material</div><div id="modal-detail-material" class="text-[#aaa]"></div></div>
+                    <div><div class="text-[#555] text-xs uppercase tracking-widest mb-1">Size</div><div id="modal-detail-size" class="text-[#666]"></div></div>
+                    <div><div class="text-[#555] text-xs uppercase tracking-widest mb-1">Museum</div><div id="modal-detail-museum" class="text-[#666]"></div></div>
+                </div>
+                <div class="space-y-8">
+                    <div class="artifact-collapse expanded" data-section="legend">
+                        <div class="collapse-head flex items-center justify-between py-2">
+                            <h4 class="text-[#D4AF37] font-bold flex items-center text-sm mb-0">前世传奇</h4>
+                            <i class="ph ph-caret-down collapse-chevron"></i>
+                        </div>
+                        <div class="collapse-body">
+                            <div class="collapse-body-inner">
+                                <p id="modal-detail-intro" class="text-[#999] text-sm leading-7 text-justify" style="white-space: pre-line"></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="artifact-collapse expanded" data-section="aesthetic">
+                        <div class="collapse-head flex items-center justify-between py-2">
+                            <h4 class="text-[#D4AF37] font-bold flex items-center text-sm mb-0">美学密码</h4>
+                            <i class="ph ph-caret-down collapse-chevron"></i>
+                        </div>
+                        <div class="collapse-body">
+                            <div class="collapse-body-inner">
+                                <p id="modal-detail-value" class="text-[#888] text-sm leading-7 italic border-l border-[#333] pl-3" style="white-space: pre-line"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+    import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+    import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+    import { artifactDatabase } from './data/index.js';
+    import { artifactLocalPaths } from './data/artifactLocalPaths.js';
+    import { artifactImageBase, artifactImageManifest } from './data/artifactImageManifest.js';
+    import { artifactModelManifest } from './data/artifactModelManifest.js';
+    import { artifactModelPaths } from './data/artifactModelPaths.js';
+    window.THREE = THREE;
+
+    // --- 心流开放平台 API（千问模型）---
+    // 请在 https://iflow.cn/?open=setting 登录后生成 API KEY 并填写到下方
+    const IFLOW_BASE_URL = "https://apis.iflow.cn/v1";   // API 基础地址
+    const IFLOW_API_KEY = "sk-1c79484df626d48a75224cd18c75148a";  // 心流 API KEY，必填（请自行填写）
+    // 千问模型 ID，请到 https://platform.iflow.cn/models 查看并复制（如 qwen3-vl-plus 等）
+    const IFLOW_MODEL = "qwen3-vl-plus";
+    let currentArtifactContext = null;
+
+    async function callIflow(prompt, systemInstruction = "") {
+        if (!IFLOW_API_KEY || !IFLOW_API_KEY.trim()) {
+            return "请在页面配置中填写心流 API KEY。获取方式：登录 [心流官网](https://iflow.cn/?open=setting) → 生成 API KEY。";
+        }
+        const url = `${IFLOW_BASE_URL}/chat/completions`;
+        const messages = [];
+        if (systemInstruction) {
+            messages.push({ role: "system", content: systemInstruction });
+        }
+        messages.push({ role: "user", content: prompt });
+        const payload = { model: IFLOW_MODEL, messages, max_tokens: 1024 };
+        try {
+            const response = await fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${IFLOW_API_KEY.trim()}`
+                },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            const text = data.choices?.[0]?.message?.content;
+            if (text) return text;
+            if (data.error?.message) return `请求异常：${data.error.message}`;
+            return "抱歉，AI 暂时无法回应。";
+        } catch (error) {
+            console.error("心流 API Error:", error);
+            return "网络连接异常，请稍后再试。";
+        }
+    }
+
+    window.toggleChatWindow = () => {
+        document.getElementById('chat-window').classList.toggle('active');
+        if (document.getElementById('chat-window').classList.contains('active')) {
+            if (state.avatar3D) {
+                state.avatar3D.isPaused = false;
+                if (state.avatar3D.startRender) state.avatar3D.startRender();
+            }
+            setTimeout(() => document.getElementById('chat-input').focus(), 100);
+        }
+    };
+
+    function addSystemMessage(text) {
+        const msgContainer = document.getElementById('chat-messages');
+        msgContainer.innerHTML += `<div class="chat-msg system">${text}</div>`;
+        msgContainer.scrollTop = msgContainer.scrollHeight;
+    }
+
+    window.sendChatMessage = async () => {
+        const input = document.getElementById('chat-input');
+        const msgContainer = document.getElementById('chat-messages');
+        const text = input.value.trim();
+        if (!text) return;
+
+        msgContainer.innerHTML += `<div class="chat-msg user">${text}</div>`;
+        input.value = '';
+        msgContainer.scrollTop = msgContainer.scrollHeight;
+
+        const loadingId = `loading-${Date.now()}`;
+        msgContainer.innerHTML += `
+            <div id="${loadingId}" class="chat-msg ai">
+                <span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>
+            </div>
+        `;
+        msgContainer.scrollTop = msgContainer.scrollHeight;
+
+        let systemPrompt = "你是一位博学多才的中国古代文物专家和博物馆导览员。请用优雅、通俗且略带文采的中文回答用户关于历史、文物、文化的问题。";
+        let finalPrompt = text;
+        if (currentArtifactContext) {
+            systemPrompt += `\n【重要：当前上下文】
+            用户正在观看文物：【${currentArtifactContext.name}】
+            - 年代：${currentArtifactContext.era}
+            - 出土地：${currentArtifactContext.city}
+            - 简介：${currentArtifactContext.intro}
+            - 价值：${currentArtifactContext.value}
+            指令：用户的问题如果包含“它”、“这个”、“历史”等指代词，必须基于上述文物信息回答。`;
+        }
+
+        const reply = await callIflow(finalPrompt, systemPrompt);
+        document.getElementById(loadingId).remove();
+        msgContainer.innerHTML += `<div class="chat-msg ai">${typeof marked !== 'undefined' ? marked.parse(reply) : reply}</div>`;
+        msgContainer.scrollTop = msgContainer.scrollHeight;
+    };
+
+    (function bindChatInput() {
+        const chatInput = document.getElementById('chat-input');
+        if (chatInput) chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') window.sendChatMessage(); });
+        else setTimeout(bindChatInput, 50);
+    })();
+
+    const MODEL_BASE = '/model/';
+    const MODEL_MAP = { bronze: 'qingtongniu.glb', ceramic: 'pipa.glb', jingjurenwu: 'jingjurenwu.glb', yuhaungdadi: 'yuhaungdadi.glb', bingmayong: 'bingmayong.glb', menggubao: 'menggubao.glb', pipa: 'pipa.glb', qingtongniu: 'qingtongniu.glb' };
+
+    function getArtifactResources(item, cityName) {
+        const res = [];
+        const city = cityName || item.city;
+        const pathKey = city && item.name ? (city + '\t' + item.name) : '';
+        const localPath = typeof artifactLocalPaths !== 'undefined' && pathKey ? artifactLocalPaths[pathKey] : null;
+        const base = localPath ? (typeof artifactImageBase !== 'undefined' && artifactImageBase ? artifactImageBase : '/photosOrvideos') + '/' + localPath + '/' : '';
+        let imgs = [];
+        if (localPath && typeof artifactImageManifest !== 'undefined' && artifactImageManifest[localPath] && artifactImageManifest[localPath].length) {
+            imgs = artifactImageManifest[localPath].map(function (f) { return base + f; });
+        } else if (localPath) {
+            imgs = [base + '1.jpg', base + '1.png', base + '1.svg'];
+        }
+        if (imgs.length) res.push({ type: 'image', urls: imgs, label: '图片' });
+        const modelPathKey = (typeof artifactModelPaths !== 'undefined' && pathKey && artifactModelPaths[pathKey]) ? artifactModelPaths[pathKey] : localPath;
+        if (modelPathKey && typeof artifactModelManifest !== 'undefined' && artifactModelManifest[modelPathKey]) {
+            res.push({ type: 'model', modelPath: modelPathKey + '.glb', label: '3D 模型' });
+        }
+        return res;
+    }
+
+    /** 取文物首图 URL（仅用 photosOrvideos 下本地图，用于卡片缩略图与图一） */
+    function getFirstImageUrl(item, cityName) {
+        const resources = getArtifactResources(item, cityName);
+        const imgRes = resources.find(r => r.type === 'image' && r.urls && r.urls.length);
+        if (imgRes) return imgRes.urls[0];
+        return '';
+    }
+
+    /** 是否有 3D 模型（用于卡片角标） */
+    function hasModelResource(item, cityName) {
+        const resources = getArtifactResources(item, cityName);
+        return resources.some(r => r.type === 'model');
+    }
+
+    // 1. 恢复完整的非遗数量数据 (关键)
+    /* 各省真实非遗数量（国家级+省级代表性项目约数，来源：文旅统计） */
+    const cultureDataMap = {
+        '浙江省': 258, '山东省': 213, '江苏省': 189, '广东省': 177, '河南省': 165,
+        '四川省': 161, '福建省': 154, '云南省': 145, '湖南省': 137, '河北省': 131,
+        '山西省': 128, '安徽省': 119, '湖北省': 116, '江西省': 111, '陕西省': 107,
+        '贵州省': 99, '北京市': 144, '广西壮族自治区': 92, '辽宁省': 88,
+        '内蒙古自治区': 76, '新疆维吾尔自治区': 83, '西藏自治区': 89,
+        '甘肃省': 68, '青海省': 73, '黑龙江省': 49, '吉林省': 54,
+        '上海市': 96, '重庆市': 98, '天津市': 67, '宁夏回族自治区': 28,
+        '海南省': 32, '台湾省': 85, '香港特别行政区': 12, '澳门特别行政区': 8
+    };
+
+    function getRandomArtifacts(cityName) {
+        return [{ id: `rand_${Math.random()}`, name: `${cityName}古陶罐`, city: cityName, tags: ['新石器'], era: '约前5000年', material: '红陶', size: '高20cm', museum: `${cityName}博物馆`, intro: '造型古朴，线条流畅，反映了当时先民的生活审美。', desc: '出土于当地早期人类遗址。', value: '见证了人类从游猎走向定居的文明进程。', modelType: null }];
+    }
+
+    const state = { viewMode: 'national', chart: null, threeScene: null, avatar3D: null, currentGalleryCity: '' };
+    state.chart = echarts.init(document.getElementById('map-container'), null, { renderer: 'canvas', useDirtyRect: true });
+
+    const sharedDracoLoader = new DRACOLoader();
+    sharedDracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+    sharedDracoLoader.preload();
+
+    const createGLTFLoader = () => {
+        const loader = new GLTFLoader();
+        loader.setDRACOLoader(sharedDracoLoader);
+        return loader;
+    };
+
+    const setLoadingScreenVisible = (visible) => {
+        const loadingScreen = document.getElementById('loading-screen');
+        if (!loadingScreen) return;
+        if (visible) {
+            loadingScreen.style.display = 'flex';
+            loadingScreen.style.opacity = '1';
+        } else {
+            loadingScreen.style.opacity = '0';
+            setTimeout(() => {
+                if (loadingScreen.style.opacity === '0') {
+                    loadingScreen.style.display = 'none';
+                }
+            }, 400);
+        }
+    };
+
+    const deepDispose = (root) => {
+        if (!root) return;
+        root.traverse((child) => {
+            if (!child.isMesh) return;
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) {
+                const materials = Array.isArray(child.material) ? child.material : [child.material];
+                materials.forEach((mat) => {
+                    Object.keys(mat).forEach((key) => {
+                        const value = mat[key];
+                        if (value && value.isTexture) value.dispose();
+                    });
+                    if (mat.dispose) mat.dispose();
+                });
+            }
+        });
+    };
+
+    /* 地图配色：古玉青铜材质色系 */
+    const mapColorRange = ['#0a1f1a', '#122e26', '#1a4a3e', '#1f5548', '#2a6050', '#3d6a48', '#5a6a42', '#8b6b3e'];
+    const nationalOption = {
+        backgroundColor: 'transparent',
+        tooltip: {
+            trigger: 'item',
+            backgroundColor: 'rgba(5, 8, 6, 0.97)',
+            borderColor: 'rgba(198,165,107,0.5)', borderWidth: 1, padding: [18, 22],
+            textStyle: { fontFamily: 'Noto Serif SC', color: '#e0d5a3' },
+            extraCssText: 'box-shadow: 0 12px 40px rgba(0,0,0,0.8), 0 0 1px rgba(198,165,107,0.3), inset 0 0 30px rgba(198,165,107,0.04); border-radius: 2px; backdrop-filter: blur(8px);',
+            formatter: p => `<div style="font-weight:bold;font-size:16px;margin-bottom:8px;font-family:'Noto Serif SC',serif;color:#e0d5a3;letter-spacing:0.1em;">${p.name}</div><div style="font-size:11px;color:#C6A56B;letter-spacing:0.05em;">馆藏瑰宝 · ${p.value || 0} 件</div>`
+        },
+        visualMap: {
+            min: 0, max: 260, left: 80, bottom: 50,
+            text: ['繁', '简'],
+            textStyle: { color: '#C6A56B', fontFamily: 'Noto Serif SC', fontSize: 11 },
+            inRange: { color: mapColorRange },
+            calculable: true
+        },
+        geo: {
+            map: 'china', roam: false, zoom: 1.2,
+            animation: false,
+            silent: false,
+            progressive: 100,
+            label: {
+                show: true,
+                color: 'rgba(200,184,138,0.85)',
+                fontSize: 11,
+                fontFamily: 'Noto Serif SC',
+                fontWeight: 'bold',
+                textBorderColor: 'rgba(0,0,0,0.8)',
+                textBorderWidth: 3,
+                textShadowColor: 'rgba(0,0,0,0.7)',
+                textShadowBlur: 6
+            },
+                itemStyle: {
+                    // 地图填充：对角线性渐变，模拟玉石色泽变化
+                    areaColor: {
+                        type: 'linear',
+                        x: 0, y: 0, x2: 1, y2: 1,
+                        colorStops: [{
+                            offset: 0, color: '#143e38' // 左上：深青玉
+                        }, {
+                            offset: 1, color: '#09201d' // 右下：墨玉
+                        }]
+                    },
+                    // 边框：哑光古金，细线显贵重
+                    borderColor: '#C6A56B',
+                    borderWidth: 0.8,
+                    // 阴影：黑色外阴影，悬浮实体感
+                    shadowColor: 'rgba(0, 0, 0, 0.8)',
+                    shadowBlur: 15,
+                    shadowOffsetY: 5
+            },
+            emphasis: {
+                disabled: false,
+                itemStyle: {
+                    // 选中高亮：玉石通透发光
+                    areaColor: {
+                        type: 'linear',
+                        x: 0, y: 0, x2: 1, y2: 1,
+                        colorStops: [{
+                            offset: 0, color: '#1d5c52'
+                        }, {
+                            offset: 1, color: '#0f3a34'
+                        }]
+                    },
+                    borderColor: '#D4AF37',
+                    borderWidth: 1,
+                    shadowBlur: 25,
+                    shadowColor: 'rgba(0, 0, 0, 0.9)'
+                },
+                label: {
+                    show: true, color: '#e8dcc8', fontWeight: 'bold', fontSize: 13,
+                    textBorderColor: 'rgba(0,0,0,0.8)', textBorderWidth: 2,
+                    textShadowColor: 'rgba(198,165,107,0.4)', textShadowBlur: 8
+                }
+            }
+        },
+        series: [{
+            type: 'map',
+            geoIndex: 0,
+            progressive: 200,
+            data: Object.keys(cultureDataMap).map(k=>({name:k, value:cultureDataMap[k]}))
+        }]
+    };
+
+
+
+    // --- 新增：背景山水轻微视差 ---
+    function initBackgroundParallax() {
+        const layers = [
+            { el: document.getElementById('bg-mountain-layer'), strength: 10 },
+            { el: document.getElementById('bg-glow-layer'), strength: 6 },
+            { el: document.getElementById('bg-noise-layer'), strength: 3 }
+        ].filter(l => l.el);
+
+        let targetX = 0;
+        let targetY = 0;
+        let currentX = 0;
+        let currentY = 0;
+
+        document.addEventListener('mousemove', (e) => {
+            const cx = window.innerWidth / 2;
+            const cy = window.innerHeight / 2;
+            targetX = (e.clientX - cx) / cx;
+            targetY = (e.clientY - cy) / cy;
+        });
+
+        const frameInterval = 1000 / 30;
+        let lastFrame = 0;
+        function animate(now) {
+            requestAnimationFrame(animate);
+            if (now - lastFrame < frameInterval) return;
+            lastFrame = now;
+            if (window.__mapInteracting) return;
+
+            currentX += (targetX - currentX) * 0.05;
+            currentY += (targetY - currentY) * 0.05;
+
+            layers.forEach(({ el, strength }) => {
+                if (!el) return;
+                const tx = currentX * strength;
+                const ty = currentY * strength * 0.5;
+                el.style.transform = `translate3d(${tx}px, ${ty}px, 0)`;
+            });
+        }
+        requestAnimationFrame(animate);
+    }
+
+    async function initAvatar3D() {
+        const container = document.getElementById('avatar-stand-container');
+        if (!container) return;
+
+        const scene = new THREE.Scene();
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+
+        // 调整相机视角，使其看起来像站在屏幕前
+        const camera = new THREE.PerspectiveCamera(25, width / height, 0.1, 100);
+        camera.position.set(0, 0, 4.0); // 调整相机位置，平视中心
+
+        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: false, powerPreference: "high-performance" }); // 性能优化：关闭抗锯齿
+        renderer.setSize(width, height);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // 性能优化：限制像素比
+        renderer.shadowMap.enabled = false; // 性能优化：关闭阴影
+        container.appendChild(renderer.domElement);
+
+        const avatarState = { scene, camera, renderer, isPaused: false, isAnimating: false, startRender: null };
+        state.avatar3D = avatarState;
+
+        // 不阻挡底图/按钮点击，交互通过全局捕获来判断是否点中模型
+        renderer.domElement.style.pointerEvents = 'none';
+        renderer.domElement.style.cursor = 'default';
+
+        // 射线检测器
+        const raycaster = new THREE.Raycaster();
+        const rayMouse = new THREE.Vector2();
+
+        // 新增：悬停状态变量，用于精确控制模型缩放
+        let isHoveringModel = false;
+        const tooltip = document.getElementById('avatar-tooltip');
+        let model = null;
+        let baseScale = 1;
+        let basePosY = 0;
+        let pickTarget = null;
+        const lastPointer = { x: 0, y: 0, clientX: 0, clientY: 0 };
+
+        function updatePointer(event) {
+            if (window.__mapInteracting) return;
+            const rect = renderer.domElement.getBoundingClientRect();
+            const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            rayMouse.set(x, y);
+            lastPointer.x = x;
+            lastPointer.y = y;
+            lastPointer.clientX = event.clientX;
+            lastPointer.clientY = event.clientY;
+        }
+
+        function updateHoverState(hit) {
+            if (hit === isHoveringModel) return; // 状态未变不写 DOM
+            isHoveringModel = hit;
+            if (hit) {
+                renderer.domElement.style.cursor = 'pointer';
+                if (tooltip) {
+                    tooltip.style.opacity = '1';
+                    tooltip.style.left = (lastPointer.clientX + 15) + 'px';
+                    tooltip.style.top = (lastPointer.clientY - 25) + 'px';
+                }
+            } else {
+                renderer.domElement.style.cursor = 'default';
+                if (tooltip) tooltip.style.opacity = '0';
+            }
+        }
+
+        let _boundingBox = null;
+        const _intersectPoint = new THREE.Vector3();
+        function performRaycast() {
+            if (!pickTarget) {
+                updateHoverState(false);
+                return false;
+            }
+            raycaster.setFromCamera(rayMouse, camera);
+            if (!_boundingBox) _boundingBox = new THREE.Box3().setFromObject(pickTarget);
+            // 用 Ray.intersectBox 判断射线与包围盒相交（Three.js 标准 API），避免遍历模型网格
+            const hit = raycaster.ray.intersectBox(_boundingBox, _intersectPoint);
+            const hitResult = hit !== null;
+            updateHoverState(hitResult);
+            return hitResult;
+        }
+
+        let _canvasRect = null;
+        let _canvasRectTime = 0;
+        function getCachedCanvasRect() {
+            const now = performance.now();
+            if (!_canvasRect || now - _canvasRectTime > 500) {
+                _canvasRect = renderer.domElement.getBoundingClientRect();
+                _canvasRectTime = now;
+            }
+            return _canvasRect;
+        }
+        function isPointerInsideCanvas(event) {
+            const r = getCachedCanvasRect();
+            return event.clientX >= r.left && event.clientX <= r.right && event.clientY >= r.top && event.clientY <= r.bottom;
+        }
+
+        // 节流射线检测：每120ms最多一次
+        let _lastRayTime = 0;
+        let _pendingMoveEvent = null;
+        let _rayThrottleId = 0;
+
+        // 悬停时仅更新 tooltip 位置，用 rAF 合并避免卡顿
+        let _tooltipRAF = 0;
+        function scheduleTooltipPosition() {
+            if (_tooltipRAF || !isHoveringModel || !tooltip) return;
+            _tooltipRAF = requestAnimationFrame(() => {
+                _tooltipRAF = 0;
+                if (!isHoveringModel || !tooltip) return;
+                tooltip.style.left = (lastPointer.clientX + 15) + 'px';
+                tooltip.style.top = (lastPointer.clientY - 25) + 'px';
+            });
+        }
+        document.addEventListener('mousemove', (event) => {
+            if (window.__mapInteracting) return;
+            updatePointer(event);
+            if (!isPointerInsideCanvas(event)) {
+                if (isHoveringModel) updateHoverState(false);
+                return;
+            }
+            scheduleTooltipPosition();
+            _pendingMoveEvent = event;
+            const now = performance.now();
+            if (now - _lastRayTime >= 120) {
+                _lastRayTime = now;
+                performRaycast();
+                _pendingMoveEvent = null;
+            } else if (!_rayThrottleId) {
+                _rayThrottleId = setTimeout(() => {
+                    _rayThrottleId = 0;
+                    if (_pendingMoveEvent) {
+                        _lastRayTime = performance.now();
+                        updatePointer(_pendingMoveEvent);
+                        performRaycast();
+                        _pendingMoveEvent = null;
+                    }
+                }, 120 - (now - _lastRayTime));
+            }
+        });
+
+        // 全局点击捕获：只有点中模型才拦截
+        document.addEventListener('click', (event) => {
+            if (window.__mapInteracting) return;
+            if (!isPointerInsideCanvas(event)) return;
+            updatePointer(event);
+            const hit = performRaycast();
+            if (!hit || !model) return;
+            event.preventDefault();
+            event.stopPropagation();
+            if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+            toggleChatWindow();
+        }, true);
+
+        // 灯光·强烈暖金侧逆光勾勒轮廓
+        const ambientLight = new THREE.AmbientLight(0x2a2a28, 0.5);
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xfff0dd, 1.5);
+        dirLight.position.set(2, 1.5, 4);
+        scene.add(dirLight);
+        const rimLight = new THREE.DirectionalLight(0xE8C547, 3.2); // 暖金侧逆光
+        rimLight.position.set(-3, 2, -2.5);
+        scene.add(rimLight);
+        const fillLight = new THREE.DirectionalLight(0xC6A56B, 1.0);
+        fillLight.position.set(1, -0.5, 2);
+        scene.add(fillLight);
+
+        const loader = createGLTFLoader();
+        let mixer = null;
+        const clock = new THREE.Clock();
+        let mixerAccum = 0;
+
+        try {
+            setLoadingScreenVisible(true);
+            // 加载李白模型
+            const gltf = await loader.loadAsync('/model/李白.glb');
+            model = gltf.scene;
+
+            // 自动缩放与定位
+            const box = new THREE.Box3().setFromObject(model);
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+
+            model.position.sub(center); // 居中
+            // model.position.y -= size.y * 0.5; // 不再过度下移，保持居中
+            model.position.y -= size.y * 0.85; // 用户要求：大幅下移模型位置
+
+            // 调整缩放 - 半身像特写 (稍微缩小一点，适应小容器)
+            baseScale = 2.4 / maxDim;
+            model.scale.setScalar(baseScale);
+
+            // 旋转至正面 (修正朝向)
+            model.rotation.y = -Math.PI / 2; // 旋转-90度以面向屏幕
+
+            // 材质优化 (优化：关闭阴影投射和接收)
+            model.traverse(c => {
+                if(c.isMesh) {
+                    c.castShadow = false;
+                    c.receiveShadow = false;
+                    // 保持原有材质特性，略微增强
+                }
+            });
+
+            scene.add(model);
+            pickTarget = model;
+            basePosY = model.position.y;
+            _boundingBox = new THREE.Box3().setFromObject(model);
+
+            // 脚下软阴影（Drop Shadow）·稳稳站于意境空间 (Canvas 渐变)
+            const shadowCanvas = document.createElement('canvas');
+            shadowCanvas.width = 128; shadowCanvas.height = 128;
+            const sCtx = shadowCanvas.getContext('2d');
+            const grd = sCtx.createRadialGradient(64, 64, 10, 64, 64, 60);
+            grd.addColorStop(0, 'rgba(0,0,0,0.8)');
+            grd.addColorStop(1, 'rgba(0,0,0,0)');
+            sCtx.fillStyle = grd;
+            sCtx.fillRect(0, 0, 128, 128);
+            const shadowTexture = new THREE.CanvasTexture(shadowCanvas);
+
+            const shadowGeo = new THREE.PlaneGeometry(3.0, 3.0);
+            const shadowMat = new THREE.MeshBasicMaterial({
+                map: shadowTexture,
+                transparent: true,
+                opacity: 0.6,
+                depthWrite: false,
+                side: THREE.DoubleSide,
+                blending: THREE.MultiplyBlending
+            });
+            const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
+            const modelBox = new THREE.Box3().setFromObject(model);
+            shadowMesh.rotation.x = -Math.PI / 2;
+            shadowMesh.position.set(0, modelBox.min.y - 0.01, 0);
+            scene.add(shadowMesh);
+
+            renderer.compile(scene, camera);
+
+            // 动画处理
+            if (gltf.animations && gltf.animations.length) {
+                mixer = new THREE.AnimationMixer(model);
+                // 优先寻找 idle 或 wait 动画，否则播放第一个
+                let clip = gltf.animations.find(a => /idle|wait|stand/i.test(a.name)) || gltf.animations[0];
+                if (clip) {
+                    const action = mixer.clipAction(clip);
+                    action.play();
+                }
+            }
+
+            // 交互：鼠标跟随 (让李白看鼠标) - 增加节流
+            const mouse = new THREE.Vector2();
+            const windowHalfX = window.innerWidth / 2;
+            const windowHalfY = window.innerHeight / 2;
+
+            let lastMouseX = 0, lastMouseY = 0;
+            let currentScaleMult = 1.0; // 当前缩放倍率 (动画插值用)
+
+            document.addEventListener('mousemove', (event) => {
+                // 简单的节流：只有变动超过一定阈值才更新
+                if (Math.abs(event.clientX - lastMouseX) > 5 || Math.abs(event.clientY - lastMouseY) > 5) {
+                    mouse.x = (event.clientX - windowHalfX) / 2;
+                    mouse.y = (event.clientY - windowHalfY) / 2;
+                    lastMouseX = event.clientX;
+                    lastMouseY = event.clientY;
+                }
+            });
+
+            const mixerFrameInterval = 1 / 30;
+            function animate(now) {
+                requestAnimationFrame(animate);
+                if (window.__mapInteracting) return;
+                const delta = clock.getDelta();
+                if (mixer) {
+                    mixerAccum += delta;
+                    if (mixerAccum >= mixerFrameInterval) {
+                        mixer.update(mixerAccum);
+                        mixerAccum = 0;
+                    }
+                }
+
+                // 鼠标跟随动画 (平滑插值)
+                // 目标旋转角度：基于鼠标位置微调 Y 轴 (左右) 和 X 轴 (抬头低头)
+                const targetRotationY = -Math.PI / 2 + (mouse.x * 0.0005); // 基础 -90 度 + 鼠标偏移
+                const targetRotationX = (mouse.y * 0.0005);
+
+                // 使用简单的线性插值 (Lerp) 平滑过渡
+                model.rotation.y += (targetRotationY - model.rotation.y) * 0.05;
+                model.rotation.x += (targetRotationX - model.rotation.x) * 0.05;
+
+                // 呼吸效果 (无论有无动画都叠加一点，增加生气)
+                const time = clock.elapsedTime;
+                model.position.y = basePosY + Math.sin(time * 2) * 0.0003; // 轻微上下浮动
+
+                // --- 核心修改：基于 Raycaster 的精确悬停缩放 ---
+                // 只有当 isHoveringModel 为 true 时，才放大
+                if (window.__mapInteracting && isHoveringModel) updateHoverState(false);
+                const targetMult = 1.0; // 不再悬停放大
+                currentScaleMult += (targetMult - currentScaleMult) * 0.1; // 平滑插值
+                model.scale.setScalar(baseScale * currentScaleMult);
+
+                if (!avatarState.isPaused) renderer.render(scene, camera);
+            }
+            avatarState.startRender = () => {
+                if (avatarState.isAnimating) return;
+                avatarState.isAnimating = true;
+                requestAnimationFrame(animate);
+            };
+            avatarState.startRender();
+
+            // 窗口大小改变时调整
+            window.addEventListener('resize', () => {
+                const w = container.clientWidth;
+                const h = container.clientHeight;
+                camera.aspect = w / h;
+                camera.updateProjectionMatrix();
+                renderer.setSize(w, h);
+            });
+
+        } catch (error) {
+            console.error("Failed to load avatar model:", error);
+            // 失败时隐藏容器，避免空白遮挡
+            container.style.display = 'none';
+        } finally {
+            setLoadingScreenVisible(false);
+        }
+    }
+
+
+
+    // --- 新增：文化氛围系统 (诗词/节气) ---
+    function initCulturalAtmosphere() {
+        // 1. 节气计算 (简化版，真实项目可用 LunarCalendar 库)
+        const solarTerms = ['小寒', '大寒', '立春', '雨水', '惊蛰', '春分', '清明', '谷雨', '立夏', '小满', '芒种', '夏至', '小暑', '大暑', '立秋', '处暑', '白露', '秋分', '寒露', '霜降', '立冬', '小雪', '大雪', '冬至'];
+        const now = new Date();
+        const year = now.getFullYear();
+        // 粗略估算：每年节气日期相对固定，这里随机展示一个临近的或者直接展示“今夕何夕”
+        // 为了展示效果，我们用一个更具文化感的日期格式
+        const termIndex = Math.floor((now.getMonth() * 2) + (now.getDate() > 15 ? 1 : 0));
+        const currentTerm = solarTerms[termIndex % 24];
+
+        const badge = document.getElementById('solar-badge');
+        if(badge) {
+            document.getElementById('term-text').innerText = currentTerm;
+            // 简单的干支纪年模拟 (2025是乙巳)
+            const ganzhi = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'][(year - 4) % 10] +
+                           ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'][(year - 4) % 12];
+            document.getElementById('term-date').innerText = `${ganzhi}年`;
+            badge.classList.remove('hidden');
+        }
+
+        // 2. 诗词轮播
+        const poems = [
+            ["天地玄黄", "宇宙洪荒"],
+            ["云腾致雨", "露结为霜"],
+            ["关关雎鸠", "在河之洲"],
+            ["溯洄从之", "道阻且长"],
+            ["青青子衿", "悠悠我心"],
+            ["呦呦鹿鸣", "食野之苹"],
+            ["大漠孤烟", "长河落日"],
+            ["落霞孤鹜", "秋水长天"]
+        ];
+        const container = document.getElementById('poetry-container');
+        if (!container) return;
+        const lines = container.querySelectorAll('.poetry-line');
+
+        let poemIdx = 0;
+
+        function showNextPoem() {
+            // 淡出
+            lines.forEach(l => l.classList.remove('active'));
+
+            setTimeout(() => {
+                // 切换内容
+                const curPoem = poems[poemIdx];
+                lines[0].innerText = curPoem[0];
+                lines[1].innerText = curPoem[1];
+
+                // 淡入
+                lines.forEach((l, i) => {
+                    setTimeout(() => l.classList.add('active'), i * 800); // 错落出现
+                });
+
+                poemIdx = (poemIdx + 1) % poems.length;
+            }, 3000); // 等待淡出完成
+        }
+
+        // 初始启动
+        setTimeout(showNextPoem, 1000);
+        setInterval(showNextPoem, 12000); // 每 12 秒切换一次
+    }
+
+    // --- 视觉特效：锐利金点粒子（极小、高亮、缓升） ---
+    function initVisualEffects() {
+        const canvas = document.getElementById('gold-particle-canvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        let w, h;
+        const resize = () => { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; };
+        resize();
+        window.addEventListener('resize', resize);
+
+        const COUNT = 200;
+        const particles = [];
+
+        function resetParticle(p, fromBottom) {
+            p.x = Math.random() * w;
+            p.y = fromBottom ? h + Math.random() * 20 : Math.random() * h;
+            // 极细金沙：0.8px ~ 2px，不要大圆点
+            p.size = 0.8 + Math.random() * 1.2;
+            // 极缓慢上升
+            p.vy = -(0.04 + Math.random() * 0.12);
+            // 微弱水平漂移
+            p.driftPhase = Math.random() * Math.PI * 2;
+            p.driftSpeed = 0.12 + Math.random() * 0.25;
+            p.driftAmp = 0.08 + Math.random() * 0.25;
+            // 低透明度，呼吸般忽明忽暗
+            p.baseAlpha = 0.25 + Math.random() * 0.35;
+            p.breathPhase = Math.random() * Math.PI * 2;
+            p.breathSpeed = 0.3 + Math.random() * 0.8;
+            return p;
+        }
+
+        for (let i = 0; i < COUNT; i++) particles.push(resetParticle({}, false));
+
+        let lastT = 0;
+        function animate(now) {
+            requestAnimationFrame(animate);
+            if (now - lastT < 30) return;
+            lastT = now;
+
+            ctx.clearRect(0, 0, w, h);
+            // 使用 overlay 混合模式，让粒子更自然地融入背景
+            ctx.globalCompositeOperation = 'screen';
+
+            const t = now * 0.001;
+
+            for (const p of particles) {
+                // 极缓慢上浮
+                p.y += p.vy;
+                p.x += Math.sin(t * p.driftSpeed + p.driftPhase) * p.driftAmp;
+
+                if (p.y < -10) resetParticle(p, true);
+
+                // 呼吸闪烁
+                const breath = 0.7 + 0.3 * Math.sin(t * p.breathSpeed + p.breathPhase);
+                const alpha = p.baseAlpha * breath;
+
+                // 香槟古金，柔和不刺眼
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = '#D4AF37';
+                ctx.fillRect(p.x, p.y, p.size, p.size);
+            }
+
+            ctx.globalCompositeOperation = 'source-over';
+        }
+        requestAnimationFrame(animate);
+    }
+
+
+    // --- 文化探灯光标 ---
+    function initCursorLantern() {
+        const lantern = document.getElementById('cursor-lantern');
+        const dot = document.getElementById('cursor-lantern-dot');
+        if (!lantern || !dot) return;
+
+        let mx = window.innerWidth / 2, my = window.innerHeight / 2;
+        const move = (x, y) => {
+            mx = x; my = y;
+            const t = `translate(${x}px,${y}px) translate(-50%,-50%)`;
+            lantern.style.transform = t;
+            dot.style.transform = t;
+        };
+        move(mx, my);
+
+        document.addEventListener('mousemove', e => move(e.clientX, e.clientY), { passive: true });
+        document.addEventListener('mouseover', e => {
+            const t = e.target;
+            if (t.closest && (t.closest('a, button, input, [onclick], .cursor-pointer, .fab-contribute, .artifact-card-3d, .holo-card'))) {
+                lantern.classList.add('hovering');
+            } else {
+                lantern.classList.remove('hovering');
+            }
+        });
+    }
+
+    // --- 山影视差（已改为纯 CSS 120s 极慢动画，此处仅占位） ---
+    function initMountainParallax() {}
+
+    // --- 点击·水波四散逼真涟漪 ---
+    function initClickOutsideEffect() {
+        document.addEventListener('click', (e) => {
+            const t = e.target;
+            if (t.closest('#artifact-drawer, #detail-modal-overlay, #contribute-modal, #model-popout-overlay, #chat-window, .fab-contribute, #search-results, #loading-screen')) return;
+            if (t.closest('a, button, input, textarea, select')) return;
+            if (t.closest('.magic-input')) return;
+            const r = document.createElement('div');
+            r.className = 'click-ripple';
+            r.style.left = e.clientX + 'px';
+            r.style.top = e.clientY + 'px';
+            const splash = document.createElement('div');
+            splash.className = 'click-ripple-splash';
+            r.appendChild(splash);
+            for (let i = 0; i < 4; i++) {
+                const w = document.createElement('div');
+                w.className = 'click-ripple-wave';
+                r.appendChild(w);
+            }
+            document.body.appendChild(r);
+            setTimeout(() => r.remove(), 1400);
+        });
+    }
+
+    let effectsInited = false;
+    const initEffectsOnce = () => {
+        if (effectsInited) return;
+        effectsInited = true;
+        initCulturalAtmosphere();
+        initAvatar3D();
+        initVisualEffects(); // Renamed from initGoldParticles
+        initCursorLantern();
+        initMountainParallax();
+        initClickOutsideEffect();
+    };
+
+    const loadMapData = () => {
+        const primaryUrl = 'https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json';
+        fetch(primaryUrl)
+            .then(res => { if(!res.ok) throw new Error('Network response was not ok'); return res.json(); })
+            .then(geoJson => {
+                echarts.registerMap('china', geoJson);
+                window.provMap = {};
+                geoJson.features.forEach(f => { if(f.properties.level==='province') window.provMap[f.properties.name]=f.properties.adcode });
+                state.chart.setOption(nationalOption);
+                window.__mapChart = state.chart;
+                window.__viewMode = 'national';
+                window.__provCoords = {};
+                geoJson.features.forEach(f => {
+                    const name = f.properties?.name; if(!name) return;
+                    const geom = f.geometry; if(!geom?.coordinates) return;
+                    let ring = geom.type==='MultiPolygon' ? geom.coordinates[0][0] : geom.coordinates[0];
+                    if(!ring || !ring.length) return;
+                    const lng = ring.reduce((s,c)=>s+c[0],0)/ring.length;
+                    const lat = ring.reduce((s,c)=>s+c[1],0)/ring.length;
+                    window.__provCoords[name] = [lng, lat];
+                });
+                window.dispatchEvent(new CustomEvent('mapReady'));
+                document.getElementById('loading-screen').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('loading-screen').style.display = 'none';
+                    initEffectsOnce();
+                }, 1000);
+            })
+            .catch(err => {
+                console.error("Map data load failed:", err);
+                document.getElementById('loading-text').innerText = "网络连接异常，请重试";
+                document.getElementById('retry-btn').classList.remove('hidden');
+            });
+    };
+    loadMapData();
+
+    // 地图交互性能：拖拽/缩放期间暂停重特效
+    window.__mapInteracting = false;
+    let mapInteractTimer = null;
+    let lastMapInteractAt = 0;
+    const MAP_INTERACT_GRACE = 220;
+    const setMapInteracting = (on) => {
+        if (mapInteractTimer) clearTimeout(mapInteractTimer);
+        if (on) {
+            lastMapInteractAt = performance.now();
+            window.__mapInteracting = true;
+            mapInteractTimer = setTimeout(() => {
+                if (performance.now() - lastMapInteractAt >= MAP_INTERACT_GRACE) {
+                    window.__mapInteracting = false;
+                }
+            }, MAP_INTERACT_GRACE + 40);
+        } else {
+            window.__mapInteracting = false;
+        }
+    };
+    if (state.chart) {
+        state.chart.on('georoam', () => setMapInteracting(true));
+        const zr = state.chart.getZr();
+        if (zr) {
+            zr.on('mousedown', () => setMapInteracting(true));
+            zr.on('mouseup', () => setMapInteracting(false));
+            zr.on('mousewheel', () => setMapInteracting(true));
+            zr.on('globalout', () => setMapInteracting(false));
+        }
+    }
+    const resetMapInteracting = () => setMapInteracting(false);
+    window.addEventListener('mouseup', resetMapInteracting, { passive: true });
+    window.addEventListener('pointerup', resetMapInteracting, { passive: true });
+    window.addEventListener('pointercancel', resetMapInteracting, { passive: true });
+    window.addEventListener('blur', resetMapInteracting, { passive: true });
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState !== 'visible') resetMapInteracting();
+    });
+    document.addEventListener('pointerdown', (e) => {
+        const mapEl = document.getElementById('map-container');
+        if (mapEl && !mapEl.contains(e.target)) resetMapInteracting();
+    }, { passive: true });
+
+    state.chart.on('click', params => {
+        if (!params.name) return;
+        if (state.viewMode === 'national') {
+            const adcode = window.provMap[params.name];
+            if(adcode) loadProvince(params.name, adcode);
+        } else if (state.viewMode === 'province') {
+            openGallery(params.name);
+            // 点击后清除高亮（selectedMode:false 已禁用选中，此处作为兜底）
+            requestAnimationFrame(() => {
+                if (state.chart && state.viewMode === 'province') {
+                    try {
+                        const opt = state.chart.getOption();
+                        const data = opt?.series?.[0]?.data;
+                        if (data) for (let i = 0; i < data.length; i++) state.chart.dispatchAction({ type: 'downplay', seriesIndex: 0, dataIndex: i });
+                    } catch (_) {}
+                }
+            });
+        }
+    });
+
+    function loadProvince(name, adcode) {
+        state.viewMode = 'province';
+        window.__viewMode = 'province';
+        window.dispatchEvent(new CustomEvent('viewModeChanged', { detail: 'province' }));
+        const municipalityKey = { '北京': '北京市', '重庆': '重庆市', '天津': '天津市', '上海': '上海市' };
+        state.currentProvinceName = municipalityKey[name] || name;
+        fetch(`https://geo.datav.aliyun.com/areas_v3/bound/${adcode}_full.json`)
+            .then(res => res.json())
+            .then(geoJson => {
+                echarts.registerMap(name, geoJson);
+
+                // 1. 生成随机数据 (模拟各市非遗数量)
+                const cityData = geoJson.features.map(f => ({
+                    name: f.properties.name,
+                    value: Math.floor(Math.random() * 300) + 50 // 50-350 之间的随机数
+                }));
+
+                // 2. 计算当前省份的最大值，用于动态调整 VisualMap
+                const maxVal = Math.max(...cityData.map(d => d.value));
+
+                state.chart.setOption({
+                    geo: {
+                        map: name, roam: false, zoom: 0.8, center: undefined,
+                        itemStyle: {
+                            areaColor: {
+                                type: 'linear',
+                                x: 0, y: 0, x2: 1, y2: 1,
+                                colorStops: [{
+                                    offset: 0, color: '#143e38'
+                                }, {
+                                    offset: 1, color: '#09201d'
+                                }]
+                            },
+                            borderColor: '#C6A56B',
+                            borderWidth: 0.8,
+                            shadowColor: 'rgba(0, 0, 0, 0.8)',
+                            shadowBlur: 15,
+                            shadowOffsetY: 5
+                        },
+                        label: { show: true, color: '#c8b88a', fontFamily: 'Noto Serif SC', fontWeight: 'bold',
+                            textBorderColor: 'rgba(0,0,0,0.6)', textBorderWidth: 2 },
+                        emphasis: {
+                            itemStyle: {
+                                areaColor: {
+                                    type: 'linear',
+                                    x: 0, y: 0, x2: 1, y2: 1,
+                                    colorStops: [{
+                                        offset: 0, color: '#1d5c52'
+                                    }, {
+                                        offset: 1, color: '#0f3a34'
+                                    }]
+                                },
+                                borderColor: '#D4AF37',
+                                borderWidth: 1,
+                                shadowBlur: 25,
+                                shadowColor: 'rgba(0, 0, 0, 0.9)'
+                            },
+                            label: { show: true, color: '#e8dcc8', textBorderColor: 'rgba(0,0,0,0.8)', textBorderWidth: 2,
+                                textShadowColor: 'rgba(198,165,107,0.4)', textShadowBlur: 8 }
+                        }
+                    },
+                    visualMap: {
+                        min: 0, max: maxVal,
+                        left: 80, bottom: 50,
+                        text: ['繁', '简'],
+                        textStyle: { color: '#e0d5a3', fontFamily: 'Noto Serif SC' },
+                        inRange: { color: mapColorRange },
+                        calculable: true
+                    },
+                    series: [{
+                        type: 'map',
+                        map: name,
+                        geoIndex: 0,
+                        selectedMode: false,
+                        data: cityData
+                    }]
+                });
+
+                const btn = document.getElementById('btn-back-national');
+                btn.style.display = 'block';
+                btn.animate([{ opacity: 0, transform: 'translate(-50%, 20px)' }, { opacity: 1, transform: 'translate(-50%, 0)' }], { duration: 500, fill: 'forwards' });
+
+                if (state.currentProvinceName && artifactDatabase[state.currentProvinceName]) {
+                    setTimeout(() => openGallery(state.currentProvinceName), 300);
+                }
+            });
+    }
+
+    function initTiltEffect() {
+        const cards = document.querySelectorAll('.artifact-card-3d');
+        cards.forEach(card => {
+            card.addEventListener('mousemove', e => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const cx = rect.width / 2;
+                const cy = rect.height / 2;
+                const rx = (y - cy) / cy * -5;
+                const ry = (x - cx) / cx * 5;
+                card.style.transform = `perspective(1000px) rotateX(${rx}deg) rotateY(${ry}deg)`;
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0)';
+            });
+        });
+    }
+
+    const fallbackImg = "data:image/svg+xml,%3Csvg width='300' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='%231e293b'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23D4AF37' font-family='serif' font-size='20'%3E暂无影像%3C/text%3E%3C/svg%3E";
+
+    /** 图片加载失败时尝试下一张（1.jpg→1.png→1.svg），两处都用：列表缩略图 + 弹窗图一 */
+    window.tryNextImage = function(imgEl) {
+        const raw = imgEl.dataset.fallbackUrls;
+        if (!raw) { imgEl.src = fallbackImg; imgEl.onerror = null; return; }
+        let arr;
+        try { arr = JSON.parse(raw.replace(/&quot;/g, '"')); } catch (_) { imgEl.src = fallbackImg; imgEl.onerror = null; return; }
+        if (!Array.isArray(arr) || arr.length === 0) { imgEl.src = fallbackImg; imgEl.onerror = null; return; }
+        const next = arr.shift();
+        imgEl.dataset.fallbackUrls = JSON.stringify(arr).replace(/"/g, '&quot;');
+        imgEl.onerror = arr.length === 0 ? function() { imgEl.src = fallbackImg; imgEl.onerror = null; } : window.tryNextImage.bind(null, imgEl);
+        imgEl.src = next;
+    };
+
+    function renderGalleryGrid(cityName, searchTerm) {
+        let artifacts = artifactDatabase[cityName];
+        if (!artifacts) return;
+        const term = (searchTerm || '').trim().toLowerCase();
+        let filtered = term ? artifacts.filter(item =>
+            item.name.toLowerCase().includes(term) ||
+            (item.intro && item.intro.toLowerCase().includes(term)) ||
+            (item.tags && item.tags.some(t => t.toLowerCase().includes(term)))
+        ) : artifacts;
+        // 仅展示有图片或 3D 模型的文物，两者都没有则不展示（仅有视频也不展示）
+        filtered = filtered.filter(item => {
+            const res = getArtifactResources(item, cityName);
+            const hasImage = res.some(r => r.type === 'image');
+            const hasModel = res.some(r => r.type === 'model');
+            return hasImage || hasModel;
+        });
+
+        document.getElementById('gallery-count').innerText = filtered.length;
+        const grid = document.getElementById('gallery-grid');
+        grid.innerHTML = filtered.map((item, idx) => {
+            const origIndex = artifacts.indexOf(item);
+            const resources = getArtifactResources(item, cityName);
+            const imgRes = resources.find(r => r.type === 'image');
+            const imgUrls = (imgRes && imgRes.urls) ? imgRes.urls : [];
+            const firstImg = imgUrls[0] || fallbackImg;
+            const fallbackUrlsAttr = imgUrls.length > 1 ? ' data-fallback-urls="' + JSON.stringify(imgUrls.slice(1)).replace(/"/g, '&quot;') + '"' : '';
+            const show3DBadge = hasModelResource(item, cityName);
+            return `
+            <div class="artifact-card-3d h-32 cursor-pointer group" onclick="openDetail('${cityName}', ${origIndex})">
+                <div class="artifact-card-inner w-full h-full flex p-4 relative overflow-hidden">
+                    <div class="w-24 h-24 flex-shrink-0 relative border border-[#444] group-hover:border-[#D4AF37] transition-colors duration-200 bg-[#111]">
+                        <img src="${firstImg}"${fallbackUrlsAttr} onerror="window.tryNextImage(this)" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition duration-300" alt="${(item.name || '').replace(/"/g, '&quot;')}">
+                        ${show3DBadge ? '<div class="absolute top-1 right-1 w-5 h-5 bg-[#C93728] text-[8px] text-white flex items-center justify-center font-bold">3D</div>' : ''}
+                    </div>
+                    <div class="flex-1 ml-5 flex flex-col justify-center relative z-10">
+                        <h4 class="text-xl font-bold text-[#D4AF37] font-serif mb-2 group-hover:text-white transition-colors duration-200">${item.name}</h4>
+                        <div class="text-xs text-[#888] line-clamp-2 leading-relaxed mb-2">${item.intro ? item.intro.substring(0,35) + '...' : ''}</div>
+                        <div class="flex flex-wrap gap-1">
+                            ${(item.tags || []).map(t => `<span class="px-2 py-0.5 tag-ink text-[#D4AF37] text-[10px]">${t}</span>`).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        }).join('');
+        setTimeout(initTiltEffect, 50);
+    }
+
+    function openGallery(cityName) {
+        const drawer = document.getElementById('artifact-drawer');
+        const galleryView = document.getElementById('view-gallery');
+        const detailView = document.getElementById('view-detail');
+        galleryView.classList.remove('hidden');
+        detailView.classList.add('hidden');
+
+        const municipalityKey = { '北京': '北京市', '重庆': '重庆市', '天津': '天津市', '上海': '上海市' };
+        let galleryKey = cityName;
+        if (!artifactDatabase[galleryKey] && state.currentProvinceName && artifactDatabase[municipalityKey[state.currentProvinceName] || state.currentProvinceName]) {
+            galleryKey = municipalityKey[state.currentProvinceName] || state.currentProvinceName;
+        }
+
+        let artifacts = artifactDatabase[galleryKey];
+        if (!artifacts) { artifacts = getRandomArtifacts(cityName); artifactDatabase[galleryKey] = artifacts; }
+
+        document.getElementById('gallery-city-name').innerText = galleryKey;
+        document.getElementById('drawer-search').value = '';
+        state.currentGalleryCity = galleryKey;
+        renderGalleryGrid(galleryKey, '');
+        drawer.classList.add('active');
+        document.body.classList.add('drawer-open');
+    }
+
+    let currentResources = [];
+    let currentResourceIndex = 0;
+    let currentImageIndex = 0;
+    let imageCarouselTimer = null;
+
+    let modelPopoutClickHandler = null;
+    let modelPopoutOpenedAt = 0;
+
+    function openModelPopout(modelPathOrType) {
+        const overlay = document.getElementById('model-popout-overlay');
+        const container = document.getElementById('model-popout-container');
+        const backdrop = document.getElementById('model-popout-backdrop');
+        if (!overlay.classList.contains('hidden') && Date.now() - modelPopoutOpenedAt < 200) return;
+        overlay.classList.remove('hidden');
+        document.body.classList.add('model-popout-active');
+        container.innerHTML = '';
+        modelPopoutOpenedAt = Date.now();
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                init3D(modelPathOrType, container);
+            });
+        });
+        if (modelPopoutClickHandler) document.removeEventListener('click', modelPopoutClickHandler);
+        modelPopoutClickHandler = (e) => {
+            if (Date.now() - modelPopoutOpenedAt < 350) return;
+            if (!container.contains(e.target) && e.target.id !== 'model-popout-close-btn' && !e.target.closest('#model-popout-close-btn')) {
+                closeModelPopout();
+            }
+        };
+        setTimeout(() => document.addEventListener('click', modelPopoutClickHandler), 350);
+        backdrop.onclick = () => closeModelPopout();
+    }
+
+    function closeModelPopout() {
+        document.getElementById('model-popout-overlay').classList.add('hidden');
+        document.body.classList.remove('model-popout-active');
+        if (modelPopoutClickHandler) {
+            document.removeEventListener('click', modelPopoutClickHandler);
+            modelPopoutClickHandler = null;
+        }
+        document.getElementById('model-popout-backdrop').onclick = null;
+        if (state.threeScene) state.threeScene.isPaused = true;
+        if (currentResources.length > 0 && currentResourceIndex > 0) {
+            currentResourceIndex = 0;
+            const tabsEl = document.getElementById('modal-resource-tabs');
+            tabsEl.querySelectorAll('button').forEach((b, j) => {
+                b.className = `w-8 h-8 flex items-center justify-center transition border ${j === 0 ? 'bg-[#D4AF37] border-[#D4AF37] text-black' : 'bg-black/50 border-[#444] text-gray-400 hover:text-white hover:border-[#D4AF37]'}`;
+            });
+            showResource(currentResources[0], 0);
+        }
+    }
+
+    document.getElementById('model-popout-close-btn')?.addEventListener('click', (e) => { e.stopPropagation(); closeModelPopout(); });
+
+    function showResource(resource, index) {
+        const modalThree = document.getElementById('modal-three-container');
+        const modalImgView = document.getElementById('modal-image-view');
+        const modalVideoView = document.getElementById('modal-video-view');
+        const modalImg = document.getElementById('modal-hero-img');
+        const modalVideo = document.getElementById('modal-hero-video');
+        const modalEmbed = document.getElementById('modal-hero-embed');
+        const modalImgNav = document.getElementById('modal-image-nav');
+        const modalImgDots = document.getElementById('modal-image-dots');
+
+        if (imageCarouselTimer) { clearInterval(imageCarouselTimer); imageCarouselTimer = null; }
+        modalThree.classList.add('hidden');
+        modalImgView.classList.add('hidden');
+        modalVideoView.classList.add('hidden');
+        if (state.threeScene) state.threeScene.isPaused = true;
+        // 立即停止所有视频播放，避免切换 tab 后声音继续
+        if (modalVideo) { modalVideo.pause(); modalVideo.removeAttribute('src'); modalVideo.load(); }
+        if (modalEmbed) { modalEmbed.src = 'about:blank'; }
+
+        if (resource.type === 'image') {
+            if (imageCarouselTimer) { clearInterval(imageCarouselTimer); imageCarouselTimer = null; }
+            modalImgView.classList.remove('hidden');
+            const urls = resource.urls || [];
+            currentImageIndex = 0;
+            modalImg.src = urls[0] || '';
+            modalImg.dataset.fallbackUrls = urls.length > 1 ? JSON.stringify(urls.slice(1)).replace(/"/g, '&quot;') : '';
+            modalImg.onerror = urls.length > 1 ? function() { window.tryNextImage(modalImg); } : null;
+            modalImgNav.classList.add('hidden');
+            modalImgDots.classList.add('hidden');
+        } else if (resource.type === 'video') {
+            modalVideoView.classList.remove('hidden');
+            const url = resource.url || '';
+            const isEmbed = /bilibili\.com|youtube\.com|youtu\.be/i.test(url);
+            if (isEmbed) {
+                modalVideo.classList.add('hidden');
+                modalEmbed.classList.remove('hidden');
+                let embedUrl = url;
+                if (/bilibili\.com\/video\/(BV\w+)/i.test(url)) embedUrl = 'https://player.bilibili.com/player.html?bvid=' + url.match(/BV\w+/)[0] + '&high_quality=1';
+                else if (/youtube\.com\/watch\?v=(\w+)/i.test(url)) embedUrl = 'https://www.youtube.com/embed/' + url.match(/v=(\w+)/)[1];
+                else if (/youtu\.be\/(\w+)/i.test(url)) embedUrl = 'https://www.youtube.com/embed/' + url.match(/youtu\.be\/(\w+)/)[1];
+                modalEmbed.src = embedUrl;
+            } else {
+                modalEmbed.classList.add('hidden');
+                modalEmbed.src = '';
+                modalVideo.classList.remove('hidden');
+                modalVideo.src = url;
+                modalVideo.load();
+            }
+        } else if (resource.type === 'model') {
+            modalThree.classList.add('hidden');
+            openModelPopout(resource.modelPath || resource.modelType);
+        }
+    }
+
+    function activateResourceTab(i, tabsEl) {
+        if (!tabsEl) tabsEl = document.getElementById('modal-resource-tabs');
+        if (!tabsEl || !Array.isArray(currentResources) || currentResources.length === 0) return;
+        if (i < 0 || i >= currentResources.length) return;
+        currentResourceIndex = i;
+        tabsEl.querySelectorAll('button[data-i]').forEach((b, j) => {
+            b.className = `w-8 h-8 flex items-center justify-center transition border ${j === i ? 'bg-[#D4AF37] border-[#D4AF37] text-black' : 'bg-black/50 border-[#444] text-gray-400 hover:text-white hover:border-[#D4AF37]'}`;
+        });
+        showResource(currentResources[i], i);
+    }
+
+    function bindResourceTabs(tabsEl) {
+        if (!tabsEl) return;
+        const handle = (e) => {
+            const btn = e.target.closest('button[data-i]');
+            if (!btn) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const i = parseInt(btn.dataset.i, 10);
+            if (Number.isNaN(i)) return;
+            activateResourceTab(i, tabsEl);
+        };
+        tabsEl.addEventListener('pointerdown', handle);
+        tabsEl.addEventListener('click', handle);
+    }
+
+    function handleResourceTabEvent(e) {
+        if (e.type === 'pointerdown') return;
+        const btn = e.target.closest('#modal-resource-tabs button[data-i]');
+        if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const i = parseInt(btn.dataset.i, 10);
+        if (Number.isNaN(i)) return;
+        const tabsEl = btn.parentElement;
+        activateResourceTab(i, tabsEl);
+    }
+    document.addEventListener('pointerdown', handleResourceTabEvent, true);
+    document.addEventListener('click', handleResourceTabEvent, true);
+
+    document.addEventListener('click', function(e) {
+        const head = e.target.closest('.artifact-collapse .collapse-head');
+        if (!head) return;
+        const section = head.closest('.artifact-collapse');
+        if (section) section.classList.toggle('expanded');
+    });
+
+    window.switchResourceTab = (i) => {
+        const index = Number(i);
+        if (Number.isNaN(index)) return;
+        activateResourceTab(index, document.getElementById('modal-resource-tabs'));
+    };
+
+    window.openDetail = function(cityName, index) {
+        const item = artifactDatabase[cityName][index];
+        const overlay = document.getElementById('detail-modal-overlay');
+        const tabsEl = document.getElementById('modal-resource-tabs');
+
+        currentArtifactContext = item;
+        if (state.threeScene) {
+            state.threeScene.isPaused = false;
+            if (state.threeScene.startRender) state.threeScene.startRender();
+        }
+        if (document.getElementById('chat-window').classList.contains('active')) {
+            addSystemMessage(`已连接上下文：【${item.name}】`);
+        }
+
+        document.getElementById('modal-detail-title').innerText = item.name;
+        document.getElementById('modal-detail-tags').innerHTML = (item.tags || []).map(t => `<span class="px-3 py-1 bg-[#222] border border-[#444] text-[#D4AF37] text-xs">${t}</span>`).join('');
+        document.getElementById('modal-detail-era').innerText = item.era || '-';
+        document.getElementById('modal-detail-material').innerText = item.material || '-';
+        document.getElementById('modal-detail-size').innerText = item.size || '-';
+        document.getElementById('modal-detail-museum').innerText = item.museum || '-';
+        const introParts = [item.intro, item.legend, item.desc].filter(Boolean);
+        let introText = introParts.length ? introParts.join('\n\n') : '';
+        if (!introText.trim()) introText = '暂无详细介绍，欢迎提供资料。';
+        else if (introText.length < 80) introText += '\n\n（本文物详细介绍正在完善中，欢迎补充资料。）';
+        document.getElementById('modal-detail-intro').innerText = introText;
+        const valueParts = [item.aesthetic, item.value].filter(Boolean);
+        let valueText = valueParts.length ? valueParts.join('\n\n') : '';
+        if (!valueText.trim()) valueText = '暂无美学与文化价值说明。';
+        else if (valueText.length < 40) valueText += '\n\n（美学与文化价值介绍正在完善中。）';
+        document.getElementById('modal-detail-value').innerText = valueText;
+        document.querySelectorAll('#detail-modal-overlay .artifact-collapse').forEach(el => el.classList.add('expanded'));
+
+        currentResources = getArtifactResources(item, cityName);
+        currentResourceIndex = 0;
+
+        if (currentResources.length === 0) {
+            tabsEl.classList.add('hidden');
+            document.getElementById('modal-image-view').classList.remove('hidden');
+            document.getElementById('modal-hero-img').src = 'https://via.placeholder.com/400x300/e6e2d3/8e8e8e?text=暂无图片';
+        } else {
+            tabsEl.classList.toggle('hidden', currentResources.length <= 1);
+            tabsEl.innerHTML = currentResources.map((r, i) => {
+                const icon = r.type === 'image' ? 'ph-image' : r.type === 'video' ? 'ph-video' : 'ph-cube';
+                return `<button type="button" onclick="switchResourceTab(${i})" class="w-8 h-8 flex items-center justify-center transition border ${i === 0 ? 'bg-[#D4AF37] border-[#D4AF37] text-black' : 'bg-black/50 border-[#444] text-gray-400 hover:text-white hover:border-[#D4AF37]'}" data-i="${i}" title="${r.label}"><i class="ph ${icon}"></i></button>`;
+            }).join('');
+            tabsEl.classList.toggle('hidden', currentResources.length <= 1);
+            bindResourceTabs(tabsEl);
+            showResource(currentResources[0], 0);
+        }
+
+        overlay.classList.add('active');
+    };
+
+    document.getElementById('modal-image-nav')?.addEventListener('click', (e) => {
+        const res = currentResources[currentResourceIndex];
+        if (!res || res.type !== 'image' || !res.urls || res.urls.length <= 1) return;
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        if (imageCarouselTimer) { clearInterval(imageCarouselTimer); imageCarouselTimer = null; }
+        const dir = btn.querySelector('.ph-caret-left') ? -1 : 1;
+        currentImageIndex = (currentImageIndex + dir + res.urls.length) % res.urls.length;
+        document.getElementById('modal-hero-img').src = res.urls[currentImageIndex];
+        document.getElementById('modal-image-dots').querySelectorAll('span').forEach((s, i) => {
+            s.className = `w-2 h-2 rounded-full cursor-pointer ${i === currentImageIndex ? 'bg-[#8E2C22]' : 'bg-gray-400/60'}`;
+        });
+        imageCarouselTimer = setInterval(() => {
+            currentImageIndex = (currentImageIndex + 1) % res.urls.length;
+            document.getElementById('modal-hero-img').src = res.urls[currentImageIndex];
+            document.getElementById('modal-image-dots').querySelectorAll('span').forEach((s, i) => { s.className = `w-2 h-2 rounded-full cursor-pointer ${i === currentImageIndex ? 'bg-[#8E2C22]' : 'bg-gray-400/60'}`; });
+        }, 4000);
+    });
+    document.getElementById('modal-image-dots')?.addEventListener('click', (e) => {
+        const dot = e.target.closest('span[data-i]');
+        if (!dot) return;
+        const i = parseInt(dot.dataset.i, 10);
+        const res = currentResources[currentResourceIndex];
+        if (!res || res.type !== 'image' || !res.urls) return;
+        if (imageCarouselTimer) { clearInterval(imageCarouselTimer); imageCarouselTimer = null; }
+        currentImageIndex = i;
+        document.getElementById('modal-hero-img').src = res.urls[i];
+        document.getElementById('modal-image-dots').querySelectorAll('span').forEach((s, j) => {
+            s.className = `w-2 h-2 rounded-full cursor-pointer ${j === i ? 'bg-[#8E2C22]' : 'bg-gray-400/60'}`;
+        });
+        imageCarouselTimer = setInterval(() => {
+            currentImageIndex = (currentImageIndex + 1) % res.urls.length;
+            document.getElementById('modal-hero-img').src = res.urls[currentImageIndex];
+            document.getElementById('modal-image-dots').querySelectorAll('span').forEach((s, j) => { s.className = `w-2 h-2 rounded-full cursor-pointer ${j === currentImageIndex ? 'bg-[#8E2C22]' : 'bg-gray-400/60'}`; });
+        }, 4000);
+    });
+
+    window.closeDetailModal = function() {
+        currentArtifactContext = null;
+        if (document.getElementById('chat-window').classList.contains('active')) {
+            addSystemMessage("已断开文物连接");
+        }
+        document.getElementById('detail-modal-overlay').classList.remove('active');
+        closeModelPopout();
+        if (imageCarouselTimer) { clearInterval(imageCarouselTimer); imageCarouselTimer = null; }
+        const v = document.getElementById('modal-hero-video');
+        if (v) { v.pause(); v.removeAttribute('src'); v.load(); }
+        const emb = document.getElementById('modal-hero-embed');
+        if (emb) emb.src = 'about:blank';
+        if (state.threeScene) state.threeScene.isPaused = true;
+    };
+
+    window.backToGallery = function() {
+        currentArtifactContext = null;
+        if (document.getElementById('chat-window').classList.contains('active')) {
+            addSystemMessage("已断开文物连接");
+        }
+        document.getElementById('view-detail').classList.add('hidden');
+        document.getElementById('view-gallery').classList.remove('hidden');
+        document.getElementById('view-gallery').animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300 });
+        if (state.threeScene) state.threeScene.isPaused = true;
+    };
+
+    window.closeDrawer = function() {
+        currentArtifactContext = null;
+        document.getElementById('artifact-drawer').classList.remove('active');
+        document.body.classList.remove('drawer-open');
+        window.closeDetailModal();
+        if (state.threeScene) state.threeScene.isPaused = true;
+        if (state.chart && state.viewMode === 'province') {
+            try {
+                state.chart.dispatchAction({ type: 'downplay', seriesIndex: 0 });
+            } catch (_) {
+                state.chart.dispatchAction({ type: 'downplay', seriesIndex: 0 });
+            }
+        }
+    }
+
+    async function init3D(typeOrPath, containerEl) {
+        const container = containerEl || document.getElementById('three-container');
+        const isPath = typeof typeOrPath === 'string' && (typeOrPath.includes('/') || typeOrPath.endsWith('.glb'));
+        const url = isPath
+            ? MODEL_BASE + typeOrPath
+            : (MODEL_MAP[typeOrPath] ? MODEL_BASE + MODEL_MAP[typeOrPath] : (typeOrPath && typeOrPath.endsWith?.('.glb') ? MODEL_BASE + typeOrPath : MODEL_BASE + 'jingjurenwu.glb'));
+
+        const getContainerSize = () => {
+            let w = container.clientWidth || container.offsetWidth;
+            let h = container.clientHeight || container.offsetHeight;
+            if (w <= 0 || h <= 0) {
+                w = w || 800;
+                h = h || 600;
+            }
+            return { w, h };
+        };
+
+        const applySize = () => {
+            const { w, h } = getContainerSize();
+            state.threeScene.renderer.setSize(w, h);
+            state.threeScene.renderer.setPixelRatio(window.devicePixelRatio);
+            state.threeScene.camera.aspect = w / h;
+            state.threeScene.camera.updateProjectionMatrix();
+        };
+
+        if (!state.threeScene) {
+            const { w, h } = getContainerSize();
+            const aspect = w / h || 16 / 9;
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 100);
+            camera.position.set(0, 1.5, 4);
+            const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            renderer.setSize(w, h);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.0;
+            container.appendChild(renderer.domElement);
+
+            const controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 1;
+            controls.maxDistance = 8;
+            controls.target.set(0, 0, 0);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5); scene.add(ambientLight);
+            const dirLight = new THREE.DirectionalLight(0xfff5e6, 2); dirLight.position.set(5, 5, 5); scene.add(dirLight);
+            const backLight = new THREE.DirectionalLight(0xD4AF37, 1.5); backLight.position.set(-5, 5, -5); scene.add(backLight);
+
+            state.threeScene = { scene, camera, renderer, controls, mesh: null, glowBase: null, glowBeam: null, isPaused: false, isAnimating: false, startRender: null };
+            const animate = () => {
+                requestAnimationFrame(animate);
+                if (state.threeScene.controls) state.threeScene.controls.update();
+                if (!state.threeScene.isPaused) renderer.render(scene, camera);
+            };
+            state.threeScene.startRender = () => {
+                if (state.threeScene.isAnimating) return;
+                state.threeScene.isAnimating = true;
+                requestAnimationFrame(animate);
+            };
+            state.threeScene.startRender();
+        } else {
+            state.threeScene.isPaused = false;
+            if (state.threeScene.renderer.domElement.parentNode !== container) {
+                state.threeScene.renderer.domElement.remove();
+                if (container._resizeObserver) {
+                    container._resizeObserver.disconnect();
+                    container._resizeObserver = null;
+                }
+                container.appendChild(state.threeScene.renderer.domElement);
+                if (state.threeScene.controls) state.threeScene.controls.dispose();
+                state.threeScene.controls = new OrbitControls(state.threeScene.camera, state.threeScene.renderer.domElement);
+                state.threeScene.controls.enableDamping = true;
+                state.threeScene.controls.dampingFactor = 0.05;
+                state.threeScene.controls.minDistance = 1;
+                state.threeScene.controls.maxDistance = 8;
+                state.threeScene.controls.target.set(0, 0, 0);
+                if (container.id === 'model-popout-container' && typeof ResizeObserver !== 'undefined') {
+                    const ro = new ResizeObserver(() => {
+                        if (state.threeScene && state.threeScene.renderer.domElement.parentNode === container) applySize();
+                    });
+                    ro.observe(container);
+                    container._resizeObserver = ro;
+                }
+            }
+            applySize();
+            if (state.threeScene.startRender) state.threeScene.startRender();
+            // 弹窗刚显示时容器尺寸可能仍为 0，下一帧再应用一次尺寸
+            if (container.id === 'model-popout-container') {
+                requestAnimationFrame(() => { applySize(); });
+            }
+        }
+
+        if (state.threeScene && state.threeScene.mesh) {
+            state.threeScene.scene.remove(state.threeScene.mesh);
+            deepDispose(state.threeScene.mesh);
+            state.threeScene.mesh = null;
+            if (state.threeScene.glowBase) {
+                state.threeScene.scene.remove(state.threeScene.glowBase);
+                state.threeScene.glowBase.geometry.dispose();
+                state.threeScene.glowBase.material.dispose();
+                state.threeScene.glowBase = null;
+            }
+            if (state.threeScene.glowBeam) {
+                state.threeScene.scene.remove(state.threeScene.glowBeam);
+                state.threeScene.glowBeam.geometry.dispose();
+                state.threeScene.glowBeam.material.dispose();
+                state.threeScene.glowBeam = null;
+            }
+        }
+
+        const loader = createGLTFLoader();
+        const isPopout = container.id === 'model-popout-container';
+        if (isPopout) {
+            const loadingEl = document.createElement('div');
+            loadingEl.className = 'absolute inset-0 flex flex-col items-center justify-center gap-3 text-[#D4AF37] bg-black/90 z-10';
+            loadingEl.innerHTML = '<span class="inline-block w-8 h-8 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin"></span><p class="text-sm font-serif">加载 3D 模型中...</p>';
+            container.appendChild(loadingEl);
+            container._loadingEl = loadingEl;
+        } else {
+            setLoadingScreenVisible(true);
+        }
+        try {
+            const gltf = await loader.loadAsync(url);
+            if (container._loadingEl && container._loadingEl.parentNode) {
+                container._loadingEl.remove();
+                container._loadingEl = null;
+            }
+            const obj = gltf.scene;
+            const box = new THREE.Box3().setFromObject(obj);
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z) || 1;
+            obj.position.sub(center);
+            obj.scale.setScalar(1.2 / maxDim);
+            obj.traverse(c => { if(c.isMesh && c.material) { c.material.metalness = 0; c.material.roughness = 0.6; } });
+            state.threeScene.mesh = obj;
+            state.threeScene.scene.add(obj);
+            if (state.threeScene.glowBase) {
+                state.threeScene.scene.remove(state.threeScene.glowBase);
+                state.threeScene.glowBase.geometry.dispose();
+                state.threeScene.glowBase.material.dispose();
+                state.threeScene.glowBase = null;
+            }
+            if (state.threeScene.glowBeam) {
+                state.threeScene.scene.remove(state.threeScene.glowBeam);
+                state.threeScene.glowBeam.geometry.dispose();
+                state.threeScene.glowBeam.material.dispose();
+                state.threeScene.glowBeam = null;
+            }
+            const by = -size.y * 0.5 - 0.05;
+            const glowGeo = new THREE.RingGeometry(0.4, 0.7, 32);
+            const glowMat = new THREE.MeshBasicMaterial({
+                color: 0xD4AF37, transparent: true, opacity: 0.35,
+                side: THREE.DoubleSide, depthWrite: false
+            });
+            const glowBase = new THREE.Mesh(glowGeo, glowMat);
+            glowBase.rotation.x = -Math.PI / 2;
+            glowBase.position.set(0, by, 0);
+            state.threeScene.scene.add(glowBase);
+            state.threeScene.glowBase = glowBase;
+            // 垂直向上金色光束（文物苏醒感）
+            const beamGeo = new THREE.CylinderGeometry(0.06, 0.18, 0.5, 16);
+            const beamMat = new THREE.MeshBasicMaterial({
+                color: 0xD4AF37, transparent: true, opacity: 0.22,
+                depthWrite: false, side: THREE.DoubleSide
+            });
+            const glowBeam = new THREE.Mesh(beamGeo, beamMat);
+            glowBeam.position.set(0, by + 0.25, 0);
+            state.threeScene.scene.add(glowBeam);
+            state.threeScene.glowBeam = glowBeam;
+            if (state.threeScene.controls) state.threeScene.controls.target.set(0, 0, 0);
+            state.threeScene.renderer.compile(state.threeScene.scene, state.threeScene.camera);
+            if (isPopout) {
+                requestAnimationFrame(() => {
+                    applySize();
+                    if (state.threeScene && state.threeScene.renderer) state.threeScene.renderer.render(state.threeScene.scene, state.threeScene.camera);
+                });
+            }
+        } catch (e) {
+            console.error('[3D] 模型加载失败:', url, e);
+            if (container._loadingEl && container._loadingEl.parentNode) {
+                container._loadingEl.remove();
+                container._loadingEl = null;
+            }
+            if (container.id === 'model-popout-container') {
+                container.innerHTML = `
+                    <div class="absolute inset-0 flex flex-col items-center justify-center gap-4 text-[#D4AF37] bg-black/80 p-6 text-center">
+                        <i class="ph ph-cube-transparent text-5xl opacity-60"></i>
+                        <p class="text-lg font-serif">3D 模型加载失败</p>
+                        <p class="text-sm text-[#888] max-w-md">请确认项目 <code class="bg-[#222] px-2 py-0.5 rounded">/model/</code> 目录下存在对应 .glb 文件（如 qingtongniu.glb、pipa.glb），或检查控制台网络请求。</p>
+                    </div>
+                `;
+            }
+        } finally {
+            if (!isPopout) setLoadingScreenVisible(false);
+        }
+    }
+
+    const searchInput = document.getElementById('global-search');
+    const searchResults = document.getElementById('search-results');
+    if (searchInput && searchResults) {
+    searchInput.addEventListener('input', (e) => {
+        const val = e.target.value.trim().toLowerCase();
+        if (!val) { searchResults.classList.add('hidden'); return; }
+        let hits = [];
+        for (let city in artifactDatabase) {
+            artifactDatabase[city].forEach((item, idx) => {
+                const matchName = item.name && item.name.toLowerCase().includes(val);
+                const matchIntro = item.intro && item.intro.toLowerCase().includes(val);
+                const matchTags = item.tags && item.tags.some(t => t.toLowerCase().includes(val));
+                if (matchName || matchIntro || matchTags) hits.push({ ...item, city, idx });
+            });
+        }
+        if (hits.length > 0) {
+            searchResults.innerHTML = hits.map(h => {
+                const imgUrl = (typeof getFirstImageUrl === 'function' ? getFirstImageUrl(h, h.city) : null) || h.img || (h.images && h.images[0]) || fallbackImg;
+                const safeImg = (imgUrl || fallbackImg).replace(/"/g, '&quot;');
+                return `
+                <div class="flex items-center gap-3 p-3 hover:bg-[#222] cursor-pointer transition border-b border-[#333] last:border-0" onclick="handleSearchResultClick('${String(h.city || '').replace(/'/g, "\\'")}', ${h.idx})">
+                    <img src="${safeImg}" class="w-10 h-10 object-cover opacity-80 border border-[#333] flex-shrink-0" onerror="this.src=this.getAttribute('data-fallback')||''" data-fallback="${fallbackImg.replace(/"/g, '&quot;')}" alt="">
+                    <div class="min-w-0 flex-1"><div class="text-[#D4AF37] font-bold text-sm truncate">${String(h.name || '').replace(/</g, '&lt;')}</div><div class="text-xs text-[#666]">${String(h.city || '').replace(/</g, '&lt;')}</div></div>
+                </div>
+            `;
+            }).join('');
+            searchResults.classList.remove('hidden');
+        } else {
+            searchResults.classList.add('hidden');
+        }
+    });
+    searchInput.addEventListener('focus', () => { if (searchResults.innerHTML.trim()) searchResults.classList.remove('hidden'); });
+    searchInput.addEventListener('blur', () => { setTimeout(() => searchResults.classList.add('hidden'), 180); });
+    }
+
+    window.handleSearchResultClick = function(city, index) {
+        if (searchResults) searchResults.classList.add('hidden');
+        if (searchInput) searchInput.value = '';
+        openGallery(city);
+        openDetail(city, index);
+    };
+
+    const drawerSearch = document.getElementById('drawer-search');
+    const drawerSearchBtn = document.getElementById('drawer-search-btn');
+    const doDrawerSearch = () => { if (state.currentGalleryCity && drawerSearch) renderGalleryGrid(state.currentGalleryCity, drawerSearch.value); };
+    if (drawerSearch) drawerSearch.addEventListener('input', doDrawerSearch);
+    if (drawerSearch) drawerSearch.addEventListener('keypress', (e) => { if (e.key === 'Enter') doDrawerSearch(); });
+    if (drawerSearchBtn) drawerSearchBtn.addEventListener('click', doDrawerSearch);
+    window.openContributeModal = () => { const modal = document.getElementById('contribute-modal'); const content = document.getElementById('modal-content'); if (modal && content) { modal.classList.remove('hidden'); modal.classList.add('flex'); modal.style.display = 'flex'; setTimeout(() => { content.classList.remove('scale-95', 'opacity-0'); content.classList.add('scale-100', 'opacity-100'); }, 10); } };
+    window.closeContributeModal = () => { const modal = document.getElementById('contribute-modal'); const content = document.getElementById('modal-content'); if (modal && content) { content.classList.remove('scale-100', 'opacity-100'); content.classList.add('scale-95', 'opacity-0'); setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); modal.style.display = 'none'; }, 300); } };
+    const fabBtn = document.getElementById('fab-contribute-btn');
+    if (fabBtn) fabBtn.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); window.openContributeModal(); });
+    window.handleContributeSubmit = (e) => { e.preventDefault(); alert('承蒙厚爱，您的贡献已记录。'); closeContributeModal(); };
+    const btnBack = document.getElementById('btn-back-national');
+    if (btnBack) btnBack.onclick = function() {
+        state.viewMode = 'national';
+        window.__viewMode = 'national';
+        window.dispatchEvent(new CustomEvent('viewModeChanged', { detail: 'national' }));
+        // 完全清空图表后重新设置，彻底消除上次点击省份的黄色高亮残留
+        state.chart.setOption(nationalOption, true);
+        this.style.display = 'none';
+        window.closeDrawer();
+    };
+    window.addEventListener('resize', () => { state.chart.resize(); if(state.threeScene) { const c = state.threeScene.renderer.domElement.parentElement; if(c) { state.threeScene.camera.aspect = c.clientWidth/c.clientHeight; state.threeScene.camera.updateProjectionMatrix(); state.threeScene.renderer.setSize(c.clientWidth, c.clientHeight); if(state.threeScene.controls) state.threeScene.controls.update(); } } });
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        const contributeModal = document.getElementById('contribute-modal');
+        if (contributeModal && !contributeModal.classList.contains('hidden')) { window.closeContributeModal(); return; }
+        if (!document.getElementById('model-popout-overlay').classList.contains('hidden')) closeModelPopout();
+        else if (document.getElementById('detail-modal-overlay').classList.contains('active')) window.closeDetailModal();
+    });
+</script>
+</body>
+</html>

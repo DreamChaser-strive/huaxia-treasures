@@ -1,0 +1,23 @@
+{
+  "name": "ar",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "create-photos-dirs": "node scripts/create-photos-dirs.js",
+    "download-images": "node scripts/download-artifact-images.js",
+    "generate-download-ps1": "node scripts/generate-download-ps1.js",
+    "manifests": "node scripts/generate-artifact-image-manifest.js && node scripts/generate-artifact-model-manifest.js",
+    "enrich-descriptions": "node scripts/enrich-artifact-descriptions.js"
+  },
+  "dependencies": {
+    "three": "^0.182.0"
+  },
+  "devDependencies": {
+    "pinyin": "^4.0.0",
+    "vite": "^5.4.11"
+  }
+}

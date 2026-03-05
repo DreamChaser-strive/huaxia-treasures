@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>河南文化博物馆</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            background-color: #111;
+        }
+
+        #overlay {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: #1a1a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: #ccc;
+            z-index: 999;
+            transition: opacity 0.5s;
+        }
+
+        h1 {
+            font-weight: 300;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #fff;
+        }
+
+        .btn {
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 12px 30px;
+            cursor: pointer;
+            font-size: 14px;
+            letter-spacing: 2px;
+            transition: all 0.3s;
+            background: transparent;
+            color: #fff;
+        }
+
+        .btn:hover {
+            background: #fff;
+            color: #000;
+        }
+
+        .tips {
+            margin-top: 30px;
+            font-size: 12px;
+            color: #666;
+            line-height: 1.6;
+            text-align: center;
+        }
+
+        #ui-layer {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            color: rgba(255,255,255,0.3);
+            font-size: 12px;
+            pointer-events: none;
+            letter-spacing: 1px;
+        }
+    </style>
+
+    <link href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.1.0/style.css" rel="stylesheet">
+    <script src="https://cdn.bootcdn.net/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
+
+</head>
+<body>
+
+<div id="overlay">
+    <h1>Henan Cultural Museum</h1>
+    <button id="startBtn" class="btn">ENTER EXHIBITION</button>
+    <div class="tips">
+        <p>WASD 移动 · 鼠标 环视</p>
+        <p>已调整：书法挂画、墙面石刻（河南传统文化楷书）</p>
+    </div>
+</div>
+
+<div id="ui-layer">
+    CENTRAL PLAINS CULTURE / HALL A
+</div>
+
+<script>
+    const CONFIG = {
+        hallWidth: 160,
+        hallLength: 320,
+        hallHeight: 80,
+
+        colorWall: 0xe0e0e0,
+        colorFloor: 0x2a2a2a,
+        colorCeiling: 0xdddddd,
+        colorStand: 0x1a1a1a,
+
+        ambientIntensity: 0.15,
+        spotIntensity: 1.8,
+        fogDensity: 0.0025,
+    };
+
+    let scene, camera, renderer, controls;
+    let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+    let prevTime = performance.now();
+    const velocity = new THREE.Vector3();
+    const direction = new THREE.Vector3();
+
+    init();
+    animate();
+
+    function init() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(CONFIG.colorWall);
+        scene.fog = new THREE.FogExp2(CONFIG.colorWall, CONFIG.fogDensity);
+
+        camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 1000);
+        camera.position.set(0, 17, 130);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.0;
+        document.body.appendChild(renderer.domElement);
+
+        buildArchitecture();
+        buildExhibits();
+        buildDecorations();
+        setupLighting();
+        setupControls();
+
+        window.addEventListener('resize', onWindowResize);
+    }
+
+    function createCalligraphyTexture(textArray) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 1024;
+        const ctx = canvas.getContext('2d');
+
+        // 1. 背景
+        ctx.fillStyle = '#fdfbf2';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 2. 边框
+        ctx.strokeStyle = '#e0dcd0';
+        ctx.lineWidth = 20;
+        ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+        // 3. 文字 (加粗，确保清晰)
+        ctx.fillStyle = '#111'; // 更深的墨色
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+
+        // 字体回退机制，确保系统中有能显示中文的字体
+        ctx.font = 'bold 90px "KaiTi", "STKaiti", "SimSun", "Microsoft YaHei", serif';
+
+        const lineHeight = 120;
+        const startY = 150;
+
+        textArray.forEach((line, index) => {
+            ctx.fillText(line, canvas.width / 2, startY + index * lineHeight);
+        });
+
+        // 4. 印章
+        ctx.fillStyle = '#8b0000';
+        const stampSize = 70;
+        const stampY = startY + textArray.length * lineHeight + 60;
+        ctx.fillRect(canvas.width / 2 - stampSize/2, stampY, stampSize, stampSize);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        // 必须设置 needsUpdate (虽然 CanvasTexture 构造函数通常会自动处理，但为了保险)
+        texture.needsUpdate = true;
+        return texture;
+    }
+
+    function createSingleCharCalligraphyTexture(char) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = 'transparent';
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = '#1a1a1a';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = 'bold 380px "KaiTi", "STKaiti", "SimSun", "FZShuTi", "Microsoft YaHei", serif';
+        ctx.fillText(char, canvas.width / 2, canvas.height / 2);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        texture.needsUpdate = true;
+        return texture;
+    }
+
+    function createWallCarvingTexture(lines) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 1024;
+        const ctx = canvas.getContext('2d');
+
+        const stoneColor = '#5a5a5a';
+        const carveColor = '#2a2a2a';
+        const carveHighlight = '#3a3a3a';
+        const paddingH = 50;
+        const paddingV = 60;
+        const maxWidth = canvas.width - paddingH * 2;
+        const maxHeight = canvas.height - paddingV * 2;
+
+        ctx.fillStyle = stoneColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const lineCount = lines.length;
+        const lineHeight = maxHeight / lineCount;
+        let fontSize = Math.min(180, Math.floor(lineHeight * 0.85));
+        const kaiFont = '"LXGW WenKai", "霞鹜文楷", "KaiTi", "STKaiti", "SimSun", serif';
+
+        ctx.font = fontSize + 'px ' + kaiFont;
+        let maxTextWidth = 0;
+        lines.forEach(line => {
+            const w = ctx.measureText(line).width;
+            if (w > maxTextWidth) maxTextWidth = w;
+        });
+
+        if (maxTextWidth > maxWidth && maxTextWidth > 0) {
+            fontSize = Math.floor(fontSize * maxWidth / maxTextWidth);
+        }
+
+        ctx.font = fontSize + 'px ' + kaiFont;
+        const startY = paddingV + lineHeight / 2;
+
+        ctx.fillStyle = carveColor;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        lines.forEach((line, index) => {
+            const y = startY + index * lineHeight;
+            ctx.fillStyle = carveHighlight;
+            ctx.fillText(line, canvas.width / 2 + 2, y + 2);
+            ctx.fillStyle = carveColor;
+            ctx.fillText(line, canvas.width / 2, y);
+        });
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        texture.needsUpdate = true;
+        return texture;
+    }
+
+    function buildArchitecture() {
+        const floorGeo = new THREE.PlaneGeometry(CONFIG.hallWidth, CONFIG.hallLength);
+        const floorMat = new THREE.MeshStandardMaterial({
+            color: CONFIG.colorFloor,
+            roughness: 0.25,
+            metalness: 0.1,
+        });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        const ceilGeo = new THREE.PlaneGeometry(CONFIG.hallWidth, CONFIG.hallLength);
+        const ceilMat = new THREE.MeshStandardMaterial({
+            color: CONFIG.colorCeiling,
+            roughness: 1.0,
+        });
+        const ceiling = new THREE.Mesh(ceilGeo, ceilMat);
+        ceiling.rotation.x = Math.PI / 2;
+        ceiling.position.y = CONFIG.hallHeight;
+        scene.add(ceiling);
+
+        const wallMat = new THREE.MeshStandardMaterial({
+            color: CONFIG.colorWall,
+            roughness: 0.9,
+        });
+
+        const endWallGeo = new THREE.PlaneGeometry(CONFIG.hallWidth, CONFIG.hallHeight);
+        const backWall = new THREE.Mesh(endWallGeo, wallMat);
+        backWall.position.set(0, CONFIG.hallHeight/2, -CONFIG.hallLength/2);
+        backWall.receiveShadow = true;
+        scene.add(backWall);
+
+        const frontWall = new THREE.Mesh(endWallGeo, wallMat);
+        frontWall.rotation.y = Math.PI;
+        frontWall.position.set(0, CONFIG.hallHeight/2, CONFIG.hallLength/2);
+        scene.add(frontWall);
+
+        const sideWallGeo = new THREE.PlaneGeometry(CONFIG.hallLength, CONFIG.hallHeight);
+        const leftBase = new THREE.Mesh(sideWallGeo, wallMat);
+        leftBase.rotation.y = Math.PI / 2;
+        leftBase.position.set(-CONFIG.hallWidth/2 - 1, CONFIG.hallHeight/2, 0);
+        scene.add(leftBase);
+
+        const rightBase = new THREE.Mesh(sideWallGeo, wallMat);
+        rightBase.rotation.y = -Math.PI / 2;
+        rightBase.position.set(CONFIG.hallWidth/2 + 1, CONFIG.hallHeight/2, 0);
+        scene.add(rightBase);
+
+        const pillarWidth = 10;
+        const pillarDepth = 6;
+        const sectionCount = 6;
+        const sectionSize = CONFIG.hallLength / sectionCount;
+
+        const pillarMat = new THREE.MeshStandardMaterial({
+            color: CONFIG.colorWall,
+            roughness: 0.8,
+        });
+
+        const pillarGeo = new THREE.BoxGeometry(pillarDepth, CONFIG.hallHeight, 12);
+        const beamGeo = new THREE.BoxGeometry(CONFIG.hallWidth, 8, 12);
+
+        for(let i = 0; i <= sectionCount; i++) {
+            const z = -CONFIG.hallLength/2 + (i * sectionSize);
+
+            const pLeft = new THREE.Mesh(pillarGeo, pillarMat);
+            pLeft.position.set(-CONFIG.hallWidth/2 + pillarDepth/2, CONFIG.hallHeight/2, z);
+            pLeft.receiveShadow = true;
+            pLeft.castShadow = true;
+            scene.add(pLeft);
+
+            const pRight = new THREE.Mesh(pillarGeo, pillarMat);
+            pRight.position.set(CONFIG.hallWidth/2 - pillarDepth/2, CONFIG.hallHeight/2, z);
+            pRight.receiveShadow = true;
+            pRight.castShadow = true;
+            scene.add(pRight);
+
+            const beam = new THREE.Mesh(beamGeo, pillarMat);
+            beam.position.set(0, CONFIG.hallHeight - 4, z);
+            beam.castShadow = true;
+            scene.add(beam);
+        }
+    }
+
+    function buildDecorations() {
+        // 1. 踢脚线
+        const skirtingHeight = 2.5;
+        const skirtingMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5 });
+
+        const sideSkirtGeo = new THREE.BoxGeometry(1, skirtingHeight, CONFIG.hallLength);
+
+        const leftSkirt = new THREE.Mesh(sideSkirtGeo, skirtingMat);
+        leftSkirt.position.set(-CONFIG.hallWidth/2 + 0.6, skirtingHeight/2, 0);
+        scene.add(leftSkirt);
+
+        const rightSkirt = new THREE.Mesh(sideSkirtGeo, skirtingMat);
+        rightSkirt.position.set(CONFIG.hallWidth/2 - 0.6, skirtingHeight/2, 0);
+        scene.add(rightSkirt);
+
+        const endSkirtGeo = new THREE.BoxGeometry(CONFIG.hallWidth, skirtingHeight, 1);
+        const backSkirt = new THREE.Mesh(endSkirtGeo, skirtingMat);
+        backSkirt.position.set(0, skirtingHeight/2, -CONFIG.hallLength/2 + 0.6);
+        scene.add(backSkirt);
+
+        // 2. 长椅
+        const benchGeo = new THREE.BoxGeometry(40, 6, 15);
+        const benchMat = new THREE.MeshStandardMaterial({
+            color: 0x3d2817,
+            roughness: 0.6
+        });
+        const legGeo = new THREE.BoxGeometry(38, 4, 13);
+        const legMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+
+        const benchZ = [-40, 40];
+        benchZ.forEach(z => {
+            const benchGroup = new THREE.Group();
+            benchGroup.position.set(0, 5, z);
+
+            const seat = new THREE.Mesh(benchGeo, benchMat);
+            seat.castShadow = true;
+            seat.receiveShadow = true;
+
+            const base = new THREE.Mesh(legGeo, legMat);
+            base.position.y = -4;
+
+            benchGroup.add(seat);
+            benchGroup.add(base);
+            scene.add(benchGroup);
+        });
+
+        // 3. 墙面书法 - 位置修改
+        const phrases = [
+            ["一部", "河南史", "半部", "中国史"],      // 左侧
+            ["伸手", "一摸", "春秋", "文化"],          // 左侧
+            ["两脚", "一踩", "秦砖", "汉瓦"],          // 右侧
+            ["华夏", "文明", "根在", "中原"]           // 右侧
+        ];
+
+        const frameGeo = new THREE.BoxGeometry(1, 26, 12);
+        const frameMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.5 });
+
+        const artGeo = new THREE.PlaneGeometry(10, 24);
+
+        const sectionCount = 6;
+        const sectionSize = CONFIG.hallLength / sectionCount;
+
+        // --- 核心修改：将索引调整为 3 和 4，这更靠近相机初始位置 (z=130) ---
+        // 之前是 0, 1 (深处)，现在改成 3 (中间), 4 (近处)
+        const artPositions = [
+            { idx: 4, side: -1, textIdx: 0 }, // 左侧，近处
+            { idx: 3, side: -1, textIdx: 1 }, // 左侧，稍远
+            { idx: 4, side: 1,  textIdx: 2 }, // 右侧，近处
+            { idx: 3, side: 1,  textIdx: 3 }, // 右侧，稍远
+        ];
+
+        artPositions.forEach(pos => {
+            // 计算 Z 轴位置
+            const z = -CONFIG.hallLength/2 + (pos.idx * sectionSize) + (sectionSize/2);
+            const x = (CONFIG.hallWidth/2 - 0.6) * pos.side;
+
+            // 画框
+            const frame = new THREE.Mesh(frameGeo, frameMat);
+            frame.position.set(x, 25, z);
+            scene.add(frame);
+
+            // 文字材质
+            const textTexture = createCalligraphyTexture(phrases[pos.textIdx]);
+            const artMat = new THREE.MeshBasicMaterial({
+                map: textTexture,
+                side: THREE.FrontSide,
+                transparent: true // 防止边缘锯齿
+            });
+
+            // 画芯
+            const art = new THREE.Mesh(artGeo, artMat);
+            art.rotation.y = pos.side * Math.PI / 2;
+            art.position.set(x - (pos.side * 0.55), 25, z);
+            scene.add(art);
+        });
+
+        // 3.5 墙面石刻 - 河南传统文化（楷书刻字，贴墙）
+        const carvingContent = [
+            ['中原文物', '见证五千年', '中华文明'],
+            ['天地之中', '华夏之源'],
+            ['中原文化', '中华主根'],
+            ['一片甲骨惊天下', '三商文明溯根源']
+        ];
+
+        const carvingPanelWidth = 10;
+        const carvingPanelHeight = 48;
+        const wallSurfaceX = CONFIG.hallWidth/2 + 1 - 0.01;
+        const carvingPositions = [
+            { idx: 1, side: -1, textIdx: 0 },
+            { idx: 2, side: -1, textIdx: 1 },
+            { idx: 5, side: -1, textIdx: 2 },
+            { idx: 1, side: 1,  textIdx: 3 },
+            { idx: 2, side: 1,  textIdx: 0 },
+            { idx: 5, side: 1,  textIdx: 1 }
+        ];
+
+        carvingPositions.forEach(pos => {
+            const z = -CONFIG.hallLength/2 + (pos.idx * sectionSize) + (sectionSize/2);
+            const x = wallSurfaceX * pos.side;
+
+            const carveTexture = createWallCarvingTexture(carvingContent[pos.textIdx]);
+            const carveMat = new THREE.MeshStandardMaterial({
+                map: carveTexture,
+                color: 0xffffff,
+                roughness: 0.8,
+                metalness: 0.1
+            });
+
+            const carveGeo = new THREE.PlaneGeometry(carvingPanelWidth, carvingPanelHeight);
+            const carvePlane = new THREE.Mesh(carveGeo, carveMat);
+            carvePlane.rotation.y = pos.side * Math.PI / 2;
+            carvePlane.position.set(x, CONFIG.hallHeight/2, z);
+            scene.add(carvePlane);
+        });
+
+        // 4. 尽头主墙浮雕
+        const focalGeo = new THREE.CylinderGeometry(15, 15, 2, 64);
+        const focalMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+        const focal = new THREE.Mesh(focalGeo, focalMat);
+        focal.rotation.x = Math.PI / 2;
+        focal.position.set(0, 30, -CONFIG.hallLength/2 + 2);
+        scene.add(focal);
+
+        // 4.5 尽头主墙两侧石刻（贴墙）
+        const backWallSurfaceZ = -CONFIG.hallLength/2 + 0.01;
+        const backCarvingPositions = [
+            { x: -45, textIdx: 2 },
+            { x: 45, textIdx: 3 }
+        ];
+        backCarvingPositions.forEach(pos => {
+            const carveTexture = createWallCarvingTexture(carvingContent[pos.textIdx]);
+            const carveMat = new THREE.MeshStandardMaterial({
+                map: carveTexture,
+                color: 0xffffff,
+                roughness: 0.8,
+                metalness: 0.1
+            });
+            const carveGeo = new THREE.PlaneGeometry(10, 38);
+            const carvePlane = new THREE.Mesh(carveGeo, carveMat);
+            carvePlane.position.set(pos.x, CONFIG.hallHeight/2, backWallSurfaceZ);
+            scene.add(carvePlane);
+        });
+
+        // 5. 圆形浮雕上的毛笔书法「静」字（置于浮雕前方，避免被遮挡）
+        const jingTexture = createSingleCharCalligraphyTexture('静');
+        const jingSize = 14;
+        const jingGeo = new THREE.PlaneGeometry(jingSize, jingSize);
+        const jingMat = new THREE.MeshBasicMaterial({
+            map: jingTexture,
+            side: THREE.FrontSide,
+            transparent: true,
+            alphaTest: 0.05
+        });
+        const jingPlane = new THREE.Mesh(jingGeo, jingMat);
+        jingPlane.position.set(0, 30, -CONFIG.hallLength/2 + 4);
+        jingPlane.renderOrder = 1;
+        scene.add(jingPlane);
+    }
+
+    function buildExhibits() {
+        const zPositions = [-80, 0, 80];
+        const xOffset = 35;
+
+        zPositions.forEach(z => {
+            createShowcase(-xOffset, z);
+            createShowcase(xOffset, z);
+        });
+
+        createShowcase(0, -120, true);
+    }
+
+    function createShowcase(x, z, isMain = false) {
+        const group = new THREE.Group();
+        group.position.set(x, 0, z);
+
+        const baseSize = isMain ? 25 : 16;
+        const baseHeight = 11;
+        const glassHeight = isMain ? 25 : 18;
+
+        const baseGeo = new THREE.BoxGeometry(baseSize, baseHeight, baseSize);
+        const baseMat = new THREE.MeshStandardMaterial({
+            color: CONFIG.colorStand,
+            roughness: 0.7,
+            metalness: 0.1
+        });
+        const base = new THREE.Mesh(baseGeo, baseMat);
+        base.position.y = baseHeight / 2;
+        base.castShadow = true;
+        base.receiveShadow = true;
+        group.add(base);
+
+        const glassGeo = new THREE.BoxGeometry(baseSize, glassHeight, baseSize);
+        const glassMat = new THREE.MeshPhysicalMaterial({
+            color: 0xffffff,
+            metalness: 0.05,
+            roughness: 0.05,
+            opacity: 0.15,
+            transparent: true,
+            transmission: 0.9,
+            clearcoat: 1.0,
+            clearcoatRoughness: 0.0,
+            side: THREE.DoubleSide
+        });
+        const glass = new THREE.Mesh(glassGeo, glassMat);
+        glass.position.y = baseHeight + glassHeight / 2;
+        group.add(glass);
+
+        const edges = new THREE.EdgesGeometry(glassGeo);
+        const edgeMat = new THREE.LineBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.2
+        });
+        const glassEdges = new THREE.LineSegments(edges, edgeMat);
+        glassEdges.position.copy(glass.position);
+        group.add(glassEdges);
+
+        const spotLight = new THREE.SpotLight(0xfff0dd, CONFIG.spotIntensity);
+        spotLight.position.set(0, 50, 0);
+        spotLight.target = base;
+        spotLight.angle = Math.PI / 6;
+        spotLight.penumbra = 0.4;
+        spotLight.decay = 2;
+        spotLight.distance = 80;
+        spotLight.castShadow = true;
+        spotLight.shadow.mapSize.width = 1024;
+        spotLight.shadow.mapSize.height = 1024;
+        spotLight.shadow.bias = -0.0001;
+        group.add(spotLight);
+
+        scene.add(group);
+    }
+
+    function setupLighting() {
+        const ambient = new THREE.AmbientLight(0xffffff, CONFIG.ambientIntensity);
+        scene.add(ambient);
+
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.2);
+        hemiLight.position.set(0, 100, 0);
+        scene.add(hemiLight);
+
+        const wallLightPositions = [-80, 0, 80];
+        wallLightPositions.forEach(z => {
+            createWallWasher(-CONFIG.hallWidth/2 + 5, z, 1);
+            createWallWasher(CONFIG.hallWidth/2 - 5, z, -1);
+        });
+    }
+
+    function createWallWasher(x, z, dirX) {
+        const light = new THREE.SpotLight(0xffffff, 1.0);
+        light.position.set(x - (dirX * 20), 50, z);
+
+        const target = new THREE.Object3D();
+        target.position.set(x, 20, z);
+        scene.add(target);
+
+        light.target = target;
+        light.angle = Math.PI / 5;
+        light.penumbra = 1;
+        light.decay = 2;
+        light.distance = 100;
+        light.castShadow = false;
+        scene.add(light);
+    }
+
+    function setupControls() {
+        controls = new THREE.PointerLockControls(camera, document.body);
+        const startBtn = document.getElementById('startBtn');
+        const overlay = document.getElementById('overlay');
+
+        startBtn.addEventListener('click', () => { controls.lock(); });
+        controls.addEventListener('lock', () => {
+            overlay.style.opacity = 0;
+            setTimeout(() => { overlay.style.display = 'none'; }, 500);
+        });
+        controls.addEventListener('unlock', () => {
+            overlay.style.display = 'flex';
+            setTimeout(() => { overlay.style.opacity = 1; }, 10);
+        });
+        scene.add(controls.getObject());
+
+        const onKeyDown = (e) => {
+            switch (e.code) {
+                case 'ArrowUp': case 'KeyW': moveForward = true; break;
+                case 'ArrowLeft': case 'KeyA': moveLeft = true; break;
+                case 'ArrowDown': case 'KeyS': moveBackward = true; break;
+                case 'ArrowRight': case 'KeyD': moveRight = true; break;
+            }
+        };
+        const onKeyUp = (e) => {
+            switch (e.code) {
+                case 'ArrowUp': case 'KeyW': moveForward = false; break;
+                case 'ArrowLeft': case 'KeyA': moveLeft = false; break;
+                case 'ArrowDown': case 'KeyS': moveBackward = false; break;
+                case 'ArrowRight': case 'KeyD': moveRight = false; break;
+            }
+        };
+        document.addEventListener('keydown', onKeyDown);
+        document.addEventListener('keyup', onKeyUp);
+    }
+
+    function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        const time = performance.now();
+        const delta = (time - prevTime) / 1000;
+
+        if (controls.isLocked) {
+            velocity.x -= velocity.x * 5.0 * delta;
+            velocity.z -= velocity.z * 5.0 * delta;
+
+            direction.z = Number(moveForward) - Number(moveBackward);
+            direction.x = Number(moveRight) - Number(moveLeft);
+            direction.normalize();
+
+            const speed = 400.0;
+
+            if (moveForward || moveBackward) velocity.z -= direction.z * speed * delta;
+            if (moveLeft || moveRight) velocity.x -= direction.x * speed * delta;
+
+            controls.moveRight(-velocity.x * delta);
+            controls.moveForward(-velocity.z * delta);
+
+            const pos = controls.getObject().position;
+            const limitX = CONFIG.hallWidth / 2 - 10;
+            const limitZ = CONFIG.hallLength / 2 - 10;
+            if(pos.x > limitX) pos.x = limitX;
+            if(pos.x < -limitX) pos.x = -limitX;
+            if(pos.z > limitZ) pos.z = limitZ;
+            if(pos.z < -limitZ) pos.z = -limitZ;
+        }
+
+        prevTime = time;
+        renderer.render(scene, camera);
+    }
+</script>
+</body>
+</html>
